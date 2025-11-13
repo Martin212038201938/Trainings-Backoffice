@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "trainings-backoffice"
+version = "0.1.0"
+description = "Modulare Backoffice-Plattform für Trainingsakademien"
+authors = ["Backoffice Team <team@example.com>"]
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110.0"
+uvicorn = {version = "^0.27.0", extras = ["standard"]}
+sqlalchemy = "^2.0.25"
+pydantic = "^2.6.1"
+pydantic-settings = "^2.1.0"
+python-dateutil = "^2.8.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.1.1"
+ruff = "^0.1.14"
+pytest = "^8.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
