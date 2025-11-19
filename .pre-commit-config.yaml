@@ -1,0 +1,116 @@
+# Pre-commit hooks for code quality
+# See https://pre-commit.com for more information
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+
+  # Python code formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        files: ^backend/
+        args: ['--config', 'backend/pyproject.toml']
+
+  # Python linting with Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        files: ^backend/
+        args: ['--fix', '--exit-non-zero-on-fix']
+
+  # Python import sorting with isort
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: ^backend/
+        args: ['--profile', 'black', '--filter-files']
+
+  # Type checking with mypy (optional but recommended)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        files: ^backend/app/
+        additional_dependencies:
+          - types-python-dateutil
+          - types-requests
+        args:
+          - --ignore-missing-imports
+          - --no-strict-optional
+          - --warn-redundant-casts
+          - --warn-unused-ignores
+
+  # Security checks with bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        files: ^backend/app/
+        args: ['-c', 'backend/pyproject.toml']
+        additional_dependencies: ['bandit[toml]']
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.33.0
+    hooks:
+      - id: yamllint
+        args: ['-d', '{extends: default, rules: {line-length: {max: 120}, document-start: disable}}']
+
+# Configuration for specific hooks
+default_language_version:
+  python: python3.11
+
+# Files to exclude from all hooks
+exclude: |
+  (?x)^(
+      \.git/.*|
+      \.venv/.*|
+      __pycache__/.*|
+      \.pytest_cache/.*|
+      \.mypy_cache/.*|
+      \.ruff_cache/.*|
+      backend/alembic/versions/.*|
+      backend/\.venv/.*|
+      backend/dist/.*|
+      backend/build/.*|
+      backend/.*\.egg-info/.*|
+      .*\.db$|
+      .*\.pyc$
+  )$
+
+# Run these hooks in CI
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

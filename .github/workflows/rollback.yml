@@ -1,0 +1,198 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Rollback target (commit hash or tag)'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      rollback_migrations:
+        description: 'Rollback database migrations?'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  rollback:
+    name: Rollback to ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://bo.yellow-plane.com
+
+    steps:
+      - name: Validate inputs
+        run: |
+          echo "🔍 Rollback Parameters:"
+          echo "  Target: ${{ inputs.target }}"
+          echo "  Environment: ${{ inputs.environment }}"
+          echo "  Rollback Migrations: ${{ inputs.rollback_migrations }}"
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+
+      - name: Add AlwaysData to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ssh-y-b.alwaysdata.net >> ~/.ssh/known_hosts
+
+      - name: Backup current state
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << 'ENDSSH'
+            cd /home/y-b/trainings-backoffice
+
+            echo "💾 Creating backup of current state..."
+            BACKUP_DIR="/home/y-b/backups/trainings-backoffice-$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+
+            # Backup code
+            git rev-parse HEAD > "$BACKUP_DIR/commit.txt"
+
+            # Backup database
+            if [ -f ".env" ]; then
+              source .env
+              if [[ $DATABASE_URL == postgresql* ]]; then
+                echo "Creating database backup..."
+                # Add PostgreSQL backup command here
+              fi
+            fi
+
+            echo "✅ Backup created at: $BACKUP_DIR"
+          ENDSSH
+
+      - name: Rollback code
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << ENDSSH
+            set -e
+            cd /home/y-b/trainings-backoffice
+
+            echo "🔙 Rolling back to ${TARGET}..."
+
+            # Verify target exists
+            if ! git rev-parse ${TARGET} >/dev/null 2>&1; then
+              echo "❌ Invalid target: ${TARGET}"
+              exit 1
+            fi
+
+            # Checkout target
+            git fetch --all
+            git checkout ${TARGET}
+
+            # Reinstall dependencies
+            cd backend
+            poetry install --no-dev --no-interaction
+
+            echo "✅ Code rolled back to ${TARGET}"
+          ENDSSH
+
+      - name: Rollback database migrations
+        if: inputs.rollback_migrations == true
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << 'ENDSSH'
+            set -e
+            cd /home/y-b/trainings-backoffice/backend
+
+            echo "🗄️  Rolling back database migrations..."
+
+            # Get current migration
+            CURRENT=$(poetry run alembic current | grep -o '[0-9a-f]\{12\}' | head -1)
+            echo "Current migration: $CURRENT"
+
+            # Rollback one migration
+            poetry run alembic downgrade -1 || {
+              echo "❌ Migration rollback failed!"
+              exit 1
+            }
+
+            echo "✅ Database rolled back"
+          ENDSSH
+
+      - name: Restart application
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << 'ENDSSH'
+            echo "🔄 Restarting application..."
+
+            if command -v supervisorctl &> /dev/null; then
+              supervisorctl restart trainings-backoffice
+              echo "✅ Application restarted"
+            else
+              echo "⚠️  Supervisor not found. Please restart manually."
+            fi
+          ENDSSH
+
+      - name: Wait for application to start
+        run: sleep 10
+
+      - name: Health check
+        run: |
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+
+          until [ $RETRY_COUNT -ge $MAX_RETRIES ]
+          do
+            if curl -f -s https://bo.yellow-plane.com/health > /dev/null; then
+              echo "✅ Health check passed!"
+              curl -s https://bo.yellow-plane.com/version | jq . || true
+              exit 0
+            fi
+
+            RETRY_COUNT=$((RETRY_COUNT+1))
+            echo "⏳ Health check failed, retrying... ($RETRY_COUNT/$MAX_RETRIES)"
+            sleep 5
+          done
+
+          echo "❌ Health check failed after $MAX_RETRIES attempts!"
+          echo "⚠️  Application may need manual intervention!"
+          exit 1
+
+      - name: Create rollback summary
+        if: always()
+        run: |
+          echo "## Rollback Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: ${{ inputs.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Migrations Rolled Back**: ${{ inputs.rollback_migrations }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://bo.yellow-plane.com" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify rollback
+        if: success()
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << 'ENDSSH'
+            cd /home/y-b/trainings-backoffice
+
+            echo "📊 Rollback Status:"
+            echo "  Current commit: $(git rev-parse --short HEAD)"
+            echo "  Branch: $(git branch --show-current || echo 'detached HEAD')"
+
+            cd backend
+            echo "  Database: $(poetry run alembic current)"
+          ENDSSH

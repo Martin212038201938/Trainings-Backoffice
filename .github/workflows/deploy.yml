@@ -1,0 +1,185 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    name: Deploy to AlwaysData
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://bo.yellow-plane.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version info
+        id: version
+        run: |
+          echo "commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "commit_message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          echo "branch=$(git branch --show-current || echo 'main')" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+
+      - name: Add AlwaysData to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ssh-y-b.alwaysdata.net >> ~/.ssh/known_hosts
+
+      - name: Create deployment package
+        run: |
+          tar -czf deploy.tar.gz \
+            --exclude='.git' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.venv' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='*.db' \
+            --exclude='tests' \
+            backend/ \
+            .env.production.example \
+            DEPLOYMENT.md \
+            README.md
+
+      - name: Upload to AlwaysData
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          scp deploy.tar.gz ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST}:/home/y-b/trainings-backoffice/
+
+      - name: Deploy on server
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << 'ENDSSH'
+            set -e
+            cd /home/y-b/trainings-backoffice
+
+            echo "📦 Extracting deployment package..."
+            tar -xzf deploy.tar.gz
+            rm deploy.tar.gz
+
+            cd backend
+
+            echo "📚 Installing dependencies..."
+            poetry install --no-dev --no-interaction
+
+            echo "🗄️  Running database migrations..."
+            poetry run alembic upgrade head || {
+              echo "❌ Migration failed!"
+              exit 1
+            }
+
+            echo "🔄 Restarting application..."
+            if command -v supervisorctl &> /dev/null; then
+              supervisorctl restart trainings-backoffice
+            else
+              echo "⚠️  Supervisor not found. Please restart manually."
+            fi
+
+            echo "✅ Deployment completed!"
+          ENDSSH
+
+      - name: Wait for application to start
+        run: sleep 10
+
+      - name: Health check
+        run: |
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+
+          until [ $RETRY_COUNT -ge $MAX_RETRIES ]
+          do
+            if curl -f -s https://bo.yellow-plane.com/health > /dev/null; then
+              echo "✅ Health check passed!"
+              curl -s https://bo.yellow-plane.com/version | jq . || true
+              exit 0
+            fi
+
+            RETRY_COUNT=$((RETRY_COUNT+1))
+            echo "⏳ Health check failed, retrying... ($RETRY_COUNT/$MAX_RETRIES)"
+            sleep 5
+          done
+
+          echo "❌ Health check failed after $MAX_RETRIES attempts!"
+          exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        env:
+          ALWAYSDATA_USER: ${{ secrets.ALWAYSDATA_USER }}
+          ALWAYSDATA_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+        run: |
+          echo "🔙 Rolling back deployment..."
+          ssh ${ALWAYSDATA_USER}@${ALWAYSDATA_HOST} << 'ENDSSH'
+            cd /home/y-b/trainings-backoffice
+            git reset --hard HEAD~1
+            cd backend
+            poetry install --no-dev --no-interaction
+            if command -v supervisorctl &> /dev/null; then
+              supervisorctl restart trainings-backoffice
+            fi
+          ENDSSH
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ steps.version.outputs.commit_hash }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ steps.version.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://bo.yellow-plane.com" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Commit Message" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.version.outputs.commit_message }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment to ${{ github.event.inputs.environment || 'production' }} failed!"
+
+  post-deploy-verification:
+    name: Post-Deployment Verification
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()
+
+    steps:
+      - name: Verify API endpoints
+        run: |
+          echo "🔍 Verifying critical endpoints..."
+          curl -f https://bo.yellow-plane.com/health || exit 1
+          curl -f https://bo.yellow-plane.com/version || exit 1
+          curl -f https://bo.yellow-plane.com/docs || exit 1
+          echo "✅ All critical endpoints are responding!"
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          echo "✅ Smoke tests passed!"

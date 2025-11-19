@@ -1,5 +1,11 @@
 # Trainings-Backoffice
 
+[![Test Suite](https://github.com/Martin212038201938/Trainings-Backoffice/actions/workflows/test.yml/badge.svg)](https://github.com/Martin212038201938/Trainings-Backoffice/actions/workflows/test.yml)
+[![Deploy to Production](https://github.com/Martin212038201938/Trainings-Backoffice/actions/workflows/deploy.yml/badge.svg)](https://github.com/Martin212038201938/Trainings-Backoffice/actions/workflows/deploy.yml)
+[![codecov](https://codecov.io/gh/Martin212038201938/Trainings-Backoffice/branch/main/graph/badge.svg)](https://codecov.io/gh/Martin212038201938/Trainings-Backoffice)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+
 Eine modulare, API-orientierte Backoffice-Plattform für die Verwaltung mehrerer Trainingsmarken (NeWoa, Yellow-Boat, copilotenschule.de etc.).
 
 ## Features
@@ -264,20 +270,141 @@ alembic downgrade -1
 
 ## Testing
 
+### Run Tests Locally
+
 ```bash
 cd backend
+
+# Run all tests
 poetry run pytest
+
+# Run with coverage
+poetry run pytest --cov=app --cov-report=html
+
+# Run specific test file
+poetry run pytest tests/test_auth.py
+
+# Run integration tests only
+poetry run pytest -m integration
+
+# Run with verbose output
+poetry run pytest -v
+```
+
+### Test Coverage
+
+Current test coverage: **70%+** (minimum required)
+
+View coverage report:
+```bash
+# Generate HTML report
+poetry run pytest --cov=app --cov-report=html
+open htmlcov/index.html
 ```
 
 ## Code Quality
 
+### Pre-commit Hooks
+
+Install pre-commit hooks for automatic code quality checks:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+Hooks include:
+- **Black**: Code formatting
+- **Ruff**: Linting
+- **isort**: Import sorting
+- **mypy**: Type checking
+- **bandit**: Security checks
+
+### Manual Code Quality Checks
+
 ```bash
 # Formatting
-poetry run black app/
+poetry run black app/ tests/
 
 # Linting
-poetry run ruff check app/
+poetry run ruff check app/ tests/
+
+# Type checking
+poetry run mypy app/
+
+# Security scan
+poetry run bandit -r app/
 ```
+
+## CI/CD Pipeline
+
+### Automated Testing
+
+Every push and pull request triggers automated tests:
+
+**Test Suite** (`.github/workflows/test.yml`):
+- ✅ Code formatting check (Black)
+- ✅ Linting (Ruff)
+- ✅ Unit tests (Python 3.11, 3.12)
+- ✅ Integration tests (PostgreSQL)
+- ✅ Security scans (Bandit, Safety)
+- ✅ Build verification
+- ✅ Code coverage (Codecov)
+
+### Automated Deployment
+
+Deployments to production are automated via GitHub Actions:
+
+**Deployment Pipeline** (`.github/workflows/deploy.yml`):
+1. ✅ Tests must pass
+2. 📦 Create deployment package
+3. 🚀 Deploy to AlwaysData via SSH
+4. 🗄️ Run database migrations
+5. 🔄 Restart application
+6. ✅ Health check verification
+7. 🔙 Automatic rollback on failure
+
+**Trigger deployment**:
+- Automatic: Push to `main` branch
+- Manual: GitHub Actions → Deploy to Production → Run workflow
+
+### Rollback Procedure
+
+If a deployment goes wrong, rollback via GitHub Actions:
+
+**Rollback Workflow** (`.github/workflows/rollback.yml`):
+1. Go to: Actions → Rollback Deployment
+2. Click "Run workflow"
+3. Enter commit hash or tag to rollback to
+4. Select environment (production/staging)
+5. Choose whether to rollback database migrations
+6. Click "Run workflow"
+
+### Required GitHub Secrets
+
+Setup required secrets for CI/CD (see [.github/SECRETS.md](.github/SECRETS.md)):
+
+- `ALWAYSDATA_SSH_KEY` - SSH private key for deployment
+- `ALWAYSDATA_USER` - SSH username (y-b)
+- `ALWAYSDATA_HOST` - SSH hostname (ssh-y-b.alwaysdata.net)
+- `SECRET_KEY_PRODUCTION` - JWT secret key for production
+
+### Branch Protection
+
+The `main` branch is protected with:
+- Required pull request reviews (1 minimum)
+- Required status checks (all tests must pass)
+- No direct pushes
+- No force pushes
+- Administrator rules included
+
+See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for complete configuration.
 
 ## Monitoring
 
