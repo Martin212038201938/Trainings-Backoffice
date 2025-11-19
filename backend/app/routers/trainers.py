@@ -4,23 +4,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..core.deps import get_current_active_user, get_db, require_backoffice
 from ..database import SessionLocal
-from ..models import Brand, Trainer
+from ..models import Brand, Trainer, User
 from ..schemas.base import TrainerCreate, TrainerRead
 
 router = APIRouter()
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.get("", response_model=list[TrainerRead])
-def list_trainers(search: str | None = None, db: Session = Depends(get_db)):
+def list_trainers(
+    search: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """List all trainers."""
     query = db.query(Trainer)
     if search:
         like = f"%{search.lower()}%"
@@ -34,7 +32,12 @@ def list_trainers(search: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=TrainerRead)
-def create_trainer(payload: TrainerCreate, db: Session = Depends(get_db)):
+def create_trainer(
+    payload: TrainerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Create a new trainer. Requires backoffice or admin role."""
     trainer = Trainer(**payload.dict(exclude={"brand_ids"}))
     if payload.brand_ids:
         trainer.brands = db.query(Brand).filter(Brand.id.in_(payload.brand_ids)).all()
@@ -45,7 +48,12 @@ def create_trainer(payload: TrainerCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{trainer_id}", response_model=TrainerRead)
-def get_trainer(trainer_id: int, db: Session = Depends(get_db)):
+def get_trainer(
+    trainer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get a specific trainer."""
     trainer = db.get(Trainer, trainer_id)
     if not trainer:
         raise HTTPException(status_code=404, detail="Trainer not found")
@@ -53,7 +61,13 @@ def get_trainer(trainer_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{trainer_id}", response_model=TrainerRead)
-def update_trainer(trainer_id: int, payload: TrainerCreate, db: Session = Depends(get_db)):
+def update_trainer(
+    trainer_id: int,
+    payload: TrainerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Update a trainer. Requires backoffice or admin role."""
     trainer = db.get(Trainer, trainer_id)
     if not trainer:
         raise HTTPException(status_code=404, detail="Trainer not found")
@@ -67,7 +81,12 @@ def update_trainer(trainer_id: int, payload: TrainerCreate, db: Session = Depend
 
 
 @router.delete("/{trainer_id}")
-def delete_trainer(trainer_id: int, db: Session = Depends(get_db)):
+def delete_trainer(
+    trainer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Delete a trainer. Requires backoffice or admin role."""
     trainer = db.get(Trainer, trainer_id)
     if not trainer:
         raise HTTPException(status_code=404, detail="Trainer not found")

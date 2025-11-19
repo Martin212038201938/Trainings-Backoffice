@@ -3,28 +3,30 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..core.deps import get_current_active_user, get_db, require_admin
 from ..database import SessionLocal
-from ..models import Brand
+from ..models import Brand, User
 from ..schemas.base import BrandCreate, BrandRead
 
 router = APIRouter()
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.get("", response_model=list[BrandRead])
-def list_brands(db: Session = Depends(get_db)):
+def list_brands(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """List all brands."""
     return db.query(Brand).all()
 
 
 @router.post("", response_model=BrandRead)
-def create_brand(payload: BrandCreate, db: Session = Depends(get_db)):
+def create_brand(
+    payload: BrandCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Create a new brand. Requires admin role."""
     brand = Brand(**payload.dict())
     db.add(brand)
     db.commit()
@@ -33,7 +35,12 @@ def create_brand(payload: BrandCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{brand_id}", response_model=BrandRead)
-def get_brand(brand_id: int, db: Session = Depends(get_db)):
+def get_brand(
+    brand_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get a specific brand."""
     brand = db.get(Brand, brand_id)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
@@ -41,7 +48,13 @@ def get_brand(brand_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{brand_id}", response_model=BrandRead)
-def update_brand(brand_id: int, payload: BrandCreate, db: Session = Depends(get_db)):
+def update_brand(
+    brand_id: int,
+    payload: BrandCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Update a brand. Requires admin role."""
     brand = db.get(Brand, brand_id)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
@@ -53,7 +66,12 @@ def update_brand(brand_id: int, payload: BrandCreate, db: Session = Depends(get_
 
 
 @router.delete("/{brand_id}")
-def delete_brand(brand_id: int, db: Session = Depends(get_db)):
+def delete_brand(
+    brand_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Delete a brand. Requires admin role."""
     brand = db.get(Brand, brand_id)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")

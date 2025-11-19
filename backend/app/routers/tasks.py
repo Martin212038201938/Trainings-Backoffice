@@ -3,23 +3,20 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal
-from ..models import TrainingTask
+from ..core.deps import get_current_active_user, get_db, require_backoffice
+from ..models import TrainingTask, User
 from ..schemas.base import TrainingTaskCreate, TrainingTaskRead
 
 router = APIRouter()
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.get("", response_model=list[TrainingTaskRead])
-def list_tasks(status: str | None = None, db: Session = Depends(get_db)):
+def list_tasks(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """List all tasks."""
     query = db.query(TrainingTask)
     if status:
         query = query.filter(TrainingTask.status == status)
@@ -27,7 +24,13 @@ def list_tasks(status: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=TrainingTaskRead)
-def create_task(payload: TrainingTaskCreate, training_id: int, db: Session = Depends(get_db)):
+def create_task(
+    payload: TrainingTaskCreate,
+    training_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Create a new task. Requires backoffice or admin role."""
     task = TrainingTask(**payload.dict(), training_id=training_id)
     db.add(task)
     db.commit()
@@ -36,7 +39,13 @@ def create_task(payload: TrainingTaskCreate, training_id: int, db: Session = Dep
 
 
 @router.put("/{task_id}", response_model=TrainingTaskRead)
-def update_task(task_id: int, payload: TrainingTaskCreate, db: Session = Depends(get_db)):
+def update_task(
+    task_id: int,
+    payload: TrainingTaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Update a task. Requires backoffice or admin role."""
     task = db.get(TrainingTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -48,7 +57,12 @@ def update_task(task_id: int, payload: TrainingTaskCreate, db: Session = Depends
 
 
 @router.post("/{task_id}/complete", response_model=TrainingTaskRead)
-def complete_task(task_id: int, db: Session = Depends(get_db)):
+def complete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Complete a task. Requires backoffice or admin role."""
     task = db.get(TrainingTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -59,7 +73,12 @@ def complete_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Delete a task. Requires backoffice or admin role."""
     task = db.get(TrainingTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
