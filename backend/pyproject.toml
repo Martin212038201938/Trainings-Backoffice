@@ -13,6 +13,12 @@ sqlalchemy = "^2.0.25"
 pydantic = "^2.6.1"
 pydantic-settings = "^2.1.0"
 python-dateutil = "^2.8.2"
+# Authentication dependencies
+python-jose = {version = "^3.3.0", extras = ["cryptography"]}
+passlib = {version = "^1.7.4", extras = ["bcrypt"]}
+python-multipart = "^0.0.6"
+# Database drivers
+psycopg2-binary = "^2.9.9"  # PostgreSQL driver
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.1.1"

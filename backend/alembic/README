@@ -1,0 +1,15 @@
+Generic single-database configuration for Alembic.
+
+To create a new migration:
+    alembic revision --autogenerate -m "Description of changes"
+
+To upgrade to the latest version:
+    alembic upgrade head
+
+To downgrade one version:
+    alembic downgrade -1
+
+To view migration history:
+    alembic history
+
+For more information, see: https://alembic.sqlalchemy.org/
