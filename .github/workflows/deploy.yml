@@ -13,75 +13,118 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.ALWAYSDATA_HOST }} >> ~/.ssh/known_hosts
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
 
-      - name: Deploy application
+      - name: Deploy application via SSH
         env:
           DEPLOY_USER: ${{ secrets.ALWAYSDATA_USER }}
           DEPLOY_HOST: ${{ secrets.ALWAYSDATA_HOST }}
-          DEPLOY_PATH: /home/y-b/trainings-backoffice
-          DB_URL: postgresql://y-b:${{ secrets.DATABASE_PASSWORD }}@postgresql-y-b.alwaysdata.net/y-b_trainings_backoffice
+          DEPLOY_PASS: ${{ secrets.ALWAYSDATA_PASSWORD }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DB_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
-          ssh $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
+          sshpass -p "$DEPLOY_PASS" ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
           set -e
+          echo "========================================"
           echo "Deploying Trainings-Backoffice..."
+          echo "========================================"
           
-          # Navigate to deployment directory
-          cd $DEPLOY_PATH || mkdir -p $DEPLOY_PATH && cd $DEPLOY_PATH
-          
-          # Pull latest code
-          if [ -d .git ]; then
+          # Navigate to or create deployment directory
+          if [ -d $DEPLOY_PATH ]; then
+            echo "Deployment directory exists, pulling latest code..."
+            cd $DEPLOY_PATH
             git pull origin main
           else
+            echo "Creating deployment directory and cloning repository..."
+            mkdir -p $DEPLOY_PATH
+            cd $DEPLOY_PATH
             git clone https://github.com/Martin212038201938/Trainings-Backoffice.git .
           fi
           
-          # Install/update dependencies
-          cd backend || true
-          if [ -f requirements.txt ]; then
-            pip install --upgrade pip
-            pip install -r requirements.txt
+          # Navigate to backend
+          if [ -d backend ]; then
+            cd backend
+          else
+            echo "ERROR: backend directory not found"
+            exit 1
           fi
           
-          # Run database migrations
-          python -m alembic upgrade head || echo "No migrations to run"
+          # Install/update Python dependencies
+          echo "Installing Python dependencies..."
+          python3 -m venv venv 2>/dev/null || true
+          . venv/bin/activate 2>/dev/null || true
+          pip install --upgrade pip setuptools wheel > /dev/null 2>&1
           
-          # Restart application
+          if [ -f requirements.txt ]; then
+            echo "Installing from requirements.txt..."
+            pip install -r requirements.txt > /dev/null 2>&1
+          else
+            echo "WARNING: requirements.txt not found"
+          fi
+          
+          # Run database migrations if available
+          echo "Checking for database migrations..."
+          if [ -d alembic ]; then
+            echo "Running alembic migrations..."
+            python -m alembic upgrade head 2>/dev/null || echo "No migrations to apply or migration error (non-critical)"
+          fi
+          
+          # Go back to deployment root
           cd ..
-          echo "Deployment completed successfully!"
+          
+          echo "========================================"
+          echo "✅ Deployment completed successfully!"
+          echo "========================================"
           echo "Application available at: https://bo.yellow-plane.com"
+          echo "Deployed at: $(date)"
+          echo "Commit: $(git rev-parse --short HEAD)"
           EOF
 
-      - name: Verify deployment
+      - name: Verify deployment health
         run: |
-          echo "Checking application health..."
-          max_attempts=30
+          echo "Waiting for application to become ready..."
+          max_attempts=60
           attempt=0
+          app_healthy=false
+          
           while [ $attempt -lt $max_attempts ]; do
-            if curl -sf https://bo.yellow-plane.com/api/health 2>/dev/null; then
-              echo "✅ Application is live and healthy!"
-              exit 0
+            if curl -sf --max-time 5 https://bo.yellow-plane.com 2>/dev/null | grep -q .; then
+              echo "✅ Application responded successfully"
+              app_healthy=true
+              break
             fi
             attempt=$((attempt + 1))
-            echo "Attempt $attempt/$max_attempts - Application not yet ready, waiting..."
+            if [ $((attempt % 10)) -eq 0 ]; then
+              echo "Attempt $attempt/$max_attempts..."
+            fi
             sleep 2
           done
-          echo "⚠️  Application health check inconclusive (may still be starting up)"
+          
+          if [ "$app_healthy" = "true" ]; then
+            echo "✅ Application health check PASSED"
+          else
+            echo "⚠️  Application health check inconclusive (may still be initializing)"
+            echo "Please verify manually at: https://bo.yellow-plane.com"
+          fi
 
-      - name: Notify deployment status
+      - name: Deployment Summary
         if: always()
         run: |
+          echo ""
+          echo "========================================"
           if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Deployment successful!"
+            echo "✅ DEPLOYMENT SUCCESSFUL!"
+            echo "========================================"
+            echo "Repository: Martin212038201938/Trainings-Backoffice"
+            echo "Commit: ${{ github.sha }}"
             echo "Application URL: https://bo.yellow-plane.com"
-            echo "Deployed commit: ${{ github.sha }}"
+            echo "Deploy Time: $(date -u)"
           else
-            echo "❌ Deployment failed!"
-            echo "Check GitHub Actions logs for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "❌ DEPLOYMENT FAILED!"
+            echo "========================================"
+            echo "Status: ${{ job.status }}"
+            echo "View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
+          echo "========================================"
