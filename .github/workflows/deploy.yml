@@ -31,42 +31,65 @@ jobs:
           echo "========================================"
           echo "Deploying Trainings-Backoffice..."
           echo "========================================"
-          echo "Deploy path: $DEPLOY_PATH"
-          
+          echo "Deploy path: \$DEPLOY_PATH"
+
           # Create deployment directory if it doesn't exist
-          if [ ! -d "$DEPLOY_PATH" ]; then
+          if [ ! -d "\$DEPLOY_PATH" ]; then
             echo "Creating deployment directory..."
-            mkdir -p "$DEPLOY_PATH"
+            mkdir -p "\$DEPLOY_PATH"
           fi
-          
-          cd "$DEPLOY_PATH"
-          
+
+          cd "\$DEPLOY_PATH"
+
           # Initialize git repo if needed or pull latest
           if [ -d .git ]; then
             echo "Repository exists, pulling latest code..."
-            git pull origin main || git clone https://github.com/Martin212038201938/Trainings-Backoffice.git .
+            git fetch origin main
+            git reset --hard origin/main
           else
             echo "Cloning repository..."
             git clone https://github.com/Martin212038201938/Trainings-Backoffice.git .
           fi
-          
+
           # Navigate to backend and install dependencies
           if [ -d backend ]; then
             echo "Entering backend directory..."
             cd backend
-            
+
+            # Create .env file with secrets
+            echo "Creating .env file with configuration..."
+            cat > .env << ENVEOF
+DATABASE_URL=${DB_URL}
+SECRET_KEY=${SECRET_KEY}
+ENVIRONMENT=production
+ENVEOF
+
+            # Verify .env was created
+            if [ -f .env ]; then
+              echo "✅ .env file created successfully"
+            else
+              echo "❌ Failed to create .env file"
+              exit 1
+            fi
+
             if [ -f requirements.txt ]; then
               echo "Installing Python dependencies..."
-              python3 -m pip install --upgrade pip > /dev/null 2>&1 || true
-              python3 -m pip install -r requirements.txt > /dev/null 2>&1 || true
+              python3 -m pip install --user --upgrade pip 2>&1 || true
+              python3 -m pip install --user -r requirements.txt 2>&1
+              echo "✅ Dependencies installed"
             fi
-            
+
+            # Create logs directory
+            mkdir -p "\$DEPLOY_PATH/logs"
+
             # Try to run migrations if alembic exists
-            if [ -d ../alembic ]; then
+            if [ -d alembic ]; then
               echo "Running database migrations..."
-              python3 -m alembic upgrade head 2>/dev/null || echo "Migrations not applicable"
+              cd ..
+              python3 -m alembic -c backend/alembic.ini upgrade head 2>&1 || echo "⚠️ Migrations skipped"
+              cd backend
             fi
-            
+
             cd ..
           fi
           

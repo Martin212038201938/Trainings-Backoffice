@@ -18,14 +18,33 @@ This adapter supports standard HTTP request/response patterns for REST APIs.
 """
 
 import asyncio
+import logging
 import sys
+import traceback
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stderr)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Add the backend directory to the Python path so imports work correctly
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-from app.main import app
+# Import the FastAPI app with error handling
+try:
+    from app.main import app
+    logger.info("FastAPI application loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load FastAPI application: {e}")
+    logger.error(traceback.format_exc())
+    raise
 
 
 class ASGItoWSGI:
@@ -38,19 +57,46 @@ class ASGItoWSGI:
 
     def __init__(self, asgi_app):
         self.asgi_app = asgi_app
+        # Create a persistent event loop for better performance
+        self._loop = None
+        logger.info("ASGItoWSGI adapter initialized")
+
+    def _get_loop(self):
+        """Get or create the event loop."""
+        if self._loop is None or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+        return self._loop
 
     def __call__(self, environ, start_response):
+        try:
+            return self._handle_request(environ, start_response)
+        except Exception as e:
+            logger.error(f"WSGI request failed: {e}")
+            logger.error(traceback.format_exc())
+            # Return a 500 error response
+            status = "500 Internal Server Error"
+            response_headers = [
+                ('Content-Type', 'application/json'),
+            ]
+            start_response(status, response_headers)
+            error_body = f'{{"error": "Internal server error", "detail": "{str(e)}"}}'
+            return [error_body.encode('utf-8')]
+
+    def _handle_request(self, environ, start_response):
         # Build ASGI scope from WSGI environ
+        path = environ.get('PATH_INFO', '/')
+
         scope = {
             'type': 'http',
             'asgi': {'version': '3.0'},
             'http_version': environ.get('SERVER_PROTOCOL', 'HTTP/1.1').split('/')[1],
             'method': environ['REQUEST_METHOD'],
-            'path': environ.get('PATH_INFO', '/'),
+            'path': path,
             'query_string': environ.get('QUERY_STRING', '').encode('utf-8'),
             'root_path': environ.get('SCRIPT_NAME', ''),
             'scheme': environ.get('wsgi.url_scheme', 'http'),
-            'server': (environ.get('SERVER_NAME', ''), int(environ.get('SERVER_PORT', 80))),
+            'server': (environ.get('SERVER_NAME', ''), int(environ.get('SERVER_PORT', 80) or 80)),
             'headers': [],
         }
 
@@ -96,12 +142,9 @@ class ASGItoWSGI:
             elif message['type'] == 'http.response.body':
                 body_parts.append(message.get('body', b''))
 
-        # Run ASGI app synchronously
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(self.asgi_app(scope, receive, send))
-        finally:
-            loop.close()
+        # Run ASGI app synchronously using persistent loop
+        loop = self._get_loop()
+        loop.run_until_complete(self.asgi_app(scope, receive, send))
 
         # Map status codes to phrases
         status_phrases = {
@@ -118,6 +161,7 @@ class ASGItoWSGI:
 
 # Create WSGI-compatible application from FastAPI ASGI app
 application = ASGItoWSGI(app)
+logger.info("WSGI application ready")
 
 if __name__ == "__main__":
     # For local development, run with uvicorn (native ASGI server)
