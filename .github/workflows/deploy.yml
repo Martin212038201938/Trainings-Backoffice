@@ -58,11 +58,9 @@ jobs:
 
             # Create .env file with secrets
             echo "Creating .env file with configuration..."
-            cat > .env << ENVEOF
-DATABASE_URL=${DB_URL}
-SECRET_KEY=${SECRET_KEY}
-ENVIRONMENT=production
-ENVEOF
+            echo "DATABASE_URL=${DB_URL}" > .env
+            echo "SECRET_KEY=${SECRET_KEY}" >> .env
+            echo "ENVIRONMENT=production" >> .env
 
             # Verify .env was created
             if [ -f .env ]; then
