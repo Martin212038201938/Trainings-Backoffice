@@ -98,3 +98,5 @@ app.include_router(catalog.router, prefix="/catalog", tags=["catalog"])
 app.include_router(trainings.router, prefix="/trainings", tags=["trainings"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(search.router, prefix="/search", tags=["search"])
+
+# Database credentials updated with correct password - Deployment #8
