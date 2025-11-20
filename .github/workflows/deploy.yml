@@ -70,12 +70,26 @@ jobs:
             cd ..
           fi
           
+          # Restart the application to load new code
+          echo "Restarting application..."
+          if command -v supervisorctl &> /dev/null; then
+            supervisorctl restart trainings-backoffice
+            echo "✅ Application restarted via supervisor"
+          else
+            # Alternative: Touch WSGI file to trigger reload (if using mod_wsgi)
+            touch /home/y-b/trainings-backoffice/backend/wsgi.py
+            echo "✅ WSGI file touched to trigger reload"
+          fi
+
+          # Wait for application to start
+          sleep 5
+
           echo "========================================"
           echo "✅ Deployment completed successfully!"
           echo "========================================"
           echo "Application URL: https://bo.yellow-plane.com"
-          echo "Deployment time: $(date)"
-          echo "Latest commit: $(cd . && git log -1 --oneline 2>/dev/null || echo 'N/A')"
+          echo "Deployment time: \$(date)"
+          echo "Latest commit: \$(git log -1 --oneline 2>/dev/null || echo 'N/A')"
           EOF
 
       - name: Verify deployment
