@@ -70,13 +70,23 @@ class AsgiToWsgiAdapter:
         response_headers = []
         body_parts = []
 
+        # Read the request body once and cache it
+        request_body = environ.get('wsgi.input', BytesIO()).read() or b''
+        body_sent = False
+
         async def receive():
             """ASGI receive callable - provides request body."""
-            body = environ.get('wsgi.input', BytesIO()).read()
+            nonlocal body_sent
+            if not body_sent:
+                body_sent = True
+                return {
+                    'type': 'http.request',
+                    'body': request_body,
+                    'more_body': False,
+                }
+            # Subsequent calls return disconnect
             return {
-                'type': 'http.request',
-                'body': body,
-                'more_body': False,
+                'type': 'http.disconnect',
             }
 
         async def send(message):
@@ -95,23 +105,21 @@ class AsgiToWsgiAdapter:
                 if body:
                     body_parts.append(body)
 
-        # Run the ASGI app synchronously
-        async def run_asgi():
-            await self.asgi_app(scope, receive, send)
-
-        # Execute the async app
-        # Use asyncio.run() for a clean event loop per request
+        # Execute the async app synchronously
         try:
-            asyncio.run(run_asgi())
-        except RuntimeError:
-            # If there's already a running event loop (shouldn't happen in uWSGI),
-            # create a new one explicitly
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(run_asgi())
-            finally:
-                loop.close()
+            # Use asyncio.run() for a clean event loop per request
+            asyncio.run(self.asgi_app(scope, receive, send))
+        except RuntimeError as e:
+            # If there's already a running event loop, create a new one
+            if "cannot be called from a running event loop" in str(e):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(self.asgi_app(scope, receive, send))
+                finally:
+                    loop.close()
+            else:
+                raise
 
         # Build WSGI status string
         status_phrases = {
