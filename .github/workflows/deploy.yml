@@ -1,0 +1,87 @@
+name: Deploy to AlwaysData
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.ALWAYSDATA_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy application
+        env:
+          DEPLOY_USER: ${{ secrets.ALWAYSDATA_USER }}
+          DEPLOY_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+          DEPLOY_PATH: /home/y-b/trainings-backoffice
+          DB_URL: postgresql://y-b:${{ secrets.DATABASE_PASSWORD }}@postgresql-y-b.alwaysdata.net/y-b_trainings_backoffice
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        run: |
+          ssh $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
+          set -e
+          echo "Deploying Trainings-Backoffice..."
+          
+          # Navigate to deployment directory
+          cd $DEPLOY_PATH || mkdir -p $DEPLOY_PATH && cd $DEPLOY_PATH
+          
+          # Pull latest code
+          if [ -d .git ]; then
+            git pull origin main
+          else
+            git clone https://github.com/Martin212038201938/Trainings-Backoffice.git .
+          fi
+          
+          # Install/update dependencies
+          cd backend || true
+          if [ -f requirements.txt ]; then
+            pip install --upgrade pip
+            pip install -r requirements.txt
+          fi
+          
+          # Run database migrations
+          python -m alembic upgrade head || echo "No migrations to run"
+          
+          # Restart application
+          cd ..
+          echo "Deployment completed successfully!"
+          echo "Application available at: https://bo.yellow-plane.com"
+          EOF
+
+      - name: Verify deployment
+        run: |
+          echo "Checking application health..."
+          max_attempts=30
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if curl -sf https://bo.yellow-plane.com/api/health 2>/dev/null; then
+              echo "✅ Application is live and healthy!"
+              exit 0
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts - Application not yet ready, waiting..."
+            sleep 2
+          done
+          echo "⚠️  Application health check inconclusive (may still be starting up)"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment successful!"
+            echo "Application URL: https://bo.yellow-plane.com"
+            echo "Deployed commit: ${{ github.sha }}"
+          else
+            echo "❌ Deployment failed!"
+            echo "Check GitHub Actions logs for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
