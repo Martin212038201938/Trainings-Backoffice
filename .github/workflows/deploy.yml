@@ -25,7 +25,7 @@ jobs:
           DB_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
-          sshpass -p "$DEPLOY_PASS" ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << EOF
+          sshpass -p "$DEPLOY_PASS" ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST bash -s << ENDSSH
           set -e
           DEPLOY_PATH="/home/y-b/trainings-backoffice"
           echo "========================================"
@@ -56,10 +56,10 @@ jobs:
             echo "Entering backend directory..."
             cd backend
 
-            # Create .env file with secrets
+            # Create .env file with secrets (variables expanded in GitHub runner)
             echo "Creating .env file with configuration..."
-            echo "DATABASE_URL=${DB_URL}" > .env
-            echo "SECRET_KEY=${SECRET_KEY}" >> .env
+            echo "DATABASE_URL=$DB_URL" > .env
+            echo "SECRET_KEY=$SECRET_KEY" >> .env
             echo "ENVIRONMENT=production" >> .env
 
             # Verify .env was created
@@ -90,7 +90,7 @@ jobs:
 
             cd ..
           fi
-          
+
           # Restart the application to load new code
           echo "Restarting application..."
           if command -v supervisorctl &> /dev/null; then
@@ -111,7 +111,7 @@ jobs:
           echo "Application URL: https://bo.yellow-plane.com"
           echo "Deployment time: \$(date)"
           echo "Latest commit: \$(git log -1 --oneline 2>/dev/null || echo 'N/A')"
-          EOF
+          ENDSSH
 
       - name: Verify deployment
         run: |
