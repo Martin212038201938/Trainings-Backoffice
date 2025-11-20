@@ -1,17 +1,33 @@
 from __future__ import annotations
 
+import logging
+import sys
 from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stderr)]
+)
+logger = logging.getLogger(__name__)
+
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .models import ActivityLog, Brand, Customer, EmailTemplate, Trainer, Training, TrainingCatalogEntry, TrainingTask, User
 from .routers import auth, brands, catalog, customers, search, tasks, trainers, trainings
 
-Base.metadata.create_all(bind=engine)
+# Create tables with error handling
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created/verified successfully")
+except Exception as e:
+    logger.error(f"Failed to create database tables: {e}")
+    # Don't raise - allow app to start for health checks
 
 app = FastAPI(
     title=settings.app_name,
@@ -54,8 +70,31 @@ def get_db():  # Dependency for routers
         db.close()
 
 
+@app.get("/")
+async def root():
+    """
+    Root endpoint - returns basic application info.
+    """
+    return {
+        "app": settings.app_name,
+        "status": "running",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
+@app.get("/ping")
+async def ping():
+    """
+    Simple ping endpoint - always returns pong.
+    Use this for basic availability checks.
+    """
+    return {"ping": "pong", "timestamp": datetime.utcnow().isoformat()}
+
+
 @app.get("/health")
-async def health_check(db: Session = Depends(get_db)):
+async def health_check():
     """
     Health check endpoint with database connectivity test.
 
@@ -64,12 +103,27 @@ async def health_check(db: Session = Depends(get_db)):
     """
     from .core.monitoring import check_database_health
 
-    db_health = check_database_health(db)
+    # Try to get a database session
+    db_health = {"status": "unknown", "connected": False}
+    try:
+        db = SessionLocal()
+        try:
+            db_health = check_database_health(db)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        db_health = {
+            "status": "unhealthy",
+            "connected": False,
+            "error": str(e)
+        }
 
     return {
-        "status": "ok" if db_health["connected"] else "degraded",
+        "status": "ok" if db_health.get("connected") else "degraded",
         "app": settings.app_name,
         "timestamp": datetime.utcnow().isoformat(),
+        "environment": settings.environment,
         "database": db_health
     }
 
