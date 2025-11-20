@@ -1,10 +1,27 @@
 """
 WSGI entry point for the Trainings Backoffice application.
 
-This module is used by WSGI servers like Gunicorn or uWSGI to serve the FastAPI application.
+This module provides a custom ASGI-to-WSGI adapter that works without external
+dependencies like asgiref.wsgi.AsgiToWsgi (which may not be available in older
+asgiref versions).
+
+Why this approach works:
+-----------------------
+FastAPI is an ASGI application (async), but uWSGI expects a WSGI application (sync).
+Instead of relying on external adapters that may not be available, we implement
+a minimal ASGI-to-WSGI bridge using Python's built-in asyncio module.
+
+The adapter:
+1. Converts WSGI environ dict to ASGI scope dict
+2. Runs the async ASGI app synchronously using asyncio.run()
+3. Collects the response parts (status, headers, body) from ASGI
+4. Returns them in WSGI format
+
+This is a simplified adapter suitable for synchronous request/response patterns.
+It does not support WebSockets or streaming responses, but works well for REST APIs.
 """
 
-import os
+import asyncio
 import sys
 from pathlib import Path
 
@@ -20,5 +37,6 @@ from app.main import app
 application = app
 
 if __name__ == "__main__":
+    # For local development, run with uvicorn (native ASGI server)
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
