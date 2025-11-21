@@ -24,24 +24,26 @@ logger = logging.getLogger(__name__)
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-# TEMPORARY: Simple test to verify uWSGI is working
-def test_application(environ, start_response):
-    """Simple WSGI app to test if uWSGI works at all."""
-    path = environ.get('PATH_INFO', '/')
-    logger.info(f"Test app received request: {path}")
+# Import the FastAPI app with error handling
+try:
+    from app.main import app
+    logger.info("FastAPI application loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load FastAPI application: {e}")
+    logger.error(traceback.format_exc())
+    raise
 
-    status = '200 OK'
-    headers = [('Content-Type', 'application/json')]
-    start_response(status, headers)
-
-    response = f'{{"test": "ok", "path": "{path}", "message": "uWSGI is working!"}}'
-    return [response.encode('utf-8')]
-
-# Use test app first to verify uWSGI works
-application = test_application
-logger.info("Test WSGI application ready")
+# Use a2wsgi for ASGI to WSGI conversion
+try:
+    from a2wsgi import ASGIMiddleware
+    application = ASGIMiddleware(app)
+    logger.info("WSGI application ready (using a2wsgi)")
+except Exception as e:
+    logger.error(f"Failed to create WSGI application: {e}")
+    logger.error(traceback.format_exc())
+    raise
 
 if __name__ == "__main__":
+    # For local development, run with uvicorn (native ASGI server)
     import uvicorn
-    from app.main import app
     uvicorn.run(app, host="0.0.0.0", port=8000)
