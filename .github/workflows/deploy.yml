@@ -72,8 +72,8 @@ jobs:
 
             if [ -f requirements.txt ]; then
               echo "Installing Python dependencies..."
-              python3 -m pip install --user --upgrade pip 2>&1 || true
-              python3 -m pip install --user -r requirements.txt 2>&1
+              python3.11 -m pip install --user --upgrade pip 2>&1 || true
+              python3.11 -m pip install --user -r requirements.txt 2>&1
               echo "✅ Dependencies installed"
             fi
 
