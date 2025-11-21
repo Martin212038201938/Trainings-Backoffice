@@ -41,7 +41,12 @@ try:
 except Exception as e:
     logger.error(f"Failed to create WSGI application: {e}")
     logger.error(traceback.format_exc())
-    raise
+    # Fallback to simple test app if a2wsgi fails
+    def application(environ, start_response):
+        status = '500 Internal Server Error'
+        headers = [('Content-Type', 'application/json')]
+        start_response(status, headers)
+        return [f'{{"error": "a2wsgi failed", "detail": "{str(e)}"}}'.encode('utf-8')]
 
 if __name__ == "__main__":
     # For local development, run with uvicorn (native ASGI server)
