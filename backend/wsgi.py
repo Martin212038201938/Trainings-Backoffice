@@ -1,11 +1,13 @@
-"""Minimal WSGI test for AlwaysData."""
+"""WSGI entry point for FastAPI on AlwaysData/uWSGI."""
+import sys
+from pathlib import Path
 
-def application(environ, start_response):
-    path = environ.get('PATH_INFO', '/')
+# Add backend to Python path
+sys.path.insert(0, str(Path(__file__).parent))
 
-    status = '200 OK'
-    headers = [('Content-Type', 'application/json')]
-    start_response(status, headers)
+# Import FastAPI app
+from app.main import app
 
-    body = f'{{"status": "ok", "path": "{path}", "message": "WSGI works!"}}'
-    return [body.encode('utf-8')]
+# Convert ASGI to WSGI
+from a2wsgi import ASGIMiddleware
+application = ASGIMiddleware(app)
