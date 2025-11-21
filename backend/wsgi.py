@@ -1,23 +1,10 @@
 """
 WSGI entry point for the Trainings Backoffice application.
 
-This module provides a custom ASGI-to-WSGI adapter that converts the FastAPI
-ASGI application to a WSGI-compatible application for deployment on servers
-like AlwaysData that use uWSGI.
-
-Why this approach works:
------------------------
-FastAPI is an ASGI application (async), but uWSGI expects a WSGI application (sync).
-This adapter:
-1. Converts WSGI environ dict to ASGI scope dict
-2. Runs the async ASGI app synchronously using asyncio
-3. Collects the response parts (status, headers, body) from ASGI
-4. Returns them in WSGI format
-
-This adapter supports standard HTTP request/response patterns for REST APIs.
+Uses a2wsgi to convert the FastAPI ASGI application to WSGI for deployment
+on servers like AlwaysData that use uWSGI.
 """
 
-import asyncio
 import logging
 import sys
 import traceback
@@ -46,141 +33,15 @@ except Exception as e:
     logger.error(traceback.format_exc())
     raise
 
-
-class ASGItoWSGI:
-    """
-    Minimal ASGI to WSGI adapter for FastAPI applications.
-
-    Converts async ASGI applications to sync WSGI for deployment on
-    traditional WSGI servers like uWSGI.
-    """
-
-    def __init__(self, asgi_app):
-        self.asgi_app = asgi_app
-        # Create a persistent event loop for better performance
-        self._loop = None
-        logger.info("ASGItoWSGI adapter initialized")
-
-    def _get_loop(self):
-        """Get or create the event loop for this request."""
-        # Always create a new event loop for each request to avoid issues with uWSGI
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        return loop
-
-    def __call__(self, environ, start_response):
-        try:
-            return self._handle_request(environ, start_response)
-        except Exception as e:
-            logger.error(f"WSGI request failed: {e}")
-            logger.error(traceback.format_exc())
-            # Return a 500 error response
-            status = "500 Internal Server Error"
-            response_headers = [
-                ('Content-Type', 'application/json'),
-            ]
-            start_response(status, response_headers)
-            error_body = f'{{"error": "Internal server error", "detail": "{str(e)}"}}'
-            return [error_body.encode('utf-8')]
-
-    def _handle_request(self, environ, start_response):
-        # Build ASGI scope from WSGI environ
-        path = environ.get('PATH_INFO', '/')
-        method = environ.get('REQUEST_METHOD', 'GET')
-        logger.info(f"Handling request: {method} {path}")
-
-        scope = {
-            'type': 'http',
-            'asgi': {'version': '3.0'},
-            'http_version': environ.get('SERVER_PROTOCOL', 'HTTP/1.1').split('/')[1],
-            'method': environ['REQUEST_METHOD'],
-            'path': path,
-            'query_string': environ.get('QUERY_STRING', '').encode('utf-8'),
-            'root_path': environ.get('SCRIPT_NAME', ''),
-            'scheme': environ.get('wsgi.url_scheme', 'http'),
-            'server': (environ.get('SERVER_NAME', ''), int(environ.get('SERVER_PORT', 80) or 80)),
-            'headers': [],
-        }
-
-        # Convert HTTP headers from WSGI environ to ASGI format
-        for key, value in environ.items():
-            if key.startswith('HTTP_'):
-                header_name = key[5:].replace('_', '-').lower().encode('latin-1')
-                scope['headers'].append((header_name, value.encode('latin-1')))
-            elif key == 'CONTENT_TYPE' and value:
-                scope['headers'].append((b'content-type', value.encode('latin-1')))
-            elif key == 'CONTENT_LENGTH' and value:
-                scope['headers'].append((b'content-length', value.encode('latin-1')))
-
-        # Read request body
-        try:
-            content_length = int(environ.get('CONTENT_LENGTH', 0) or 0)
-        except ValueError:
-            content_length = 0
-
-        body = environ['wsgi.input'].read(content_length) if content_length else b''
-        body_sent = False
-
-        # Response state
-        status_code = None
-        response_headers = []
-        body_parts = []
-
-        async def receive():
-            nonlocal body_sent
-            if not body_sent:
-                body_sent = True
-                return {'type': 'http.request', 'body': body, 'more_body': False}
-            return {'type': 'http.disconnect'}
-
-        async def send(message):
-            nonlocal status_code, response_headers, body_parts
-            if message['type'] == 'http.response.start':
-                status_code = message['status']
-                response_headers = [
-                    (name.decode('latin-1'), value.decode('latin-1'))
-                    for name, value in message.get('headers', [])
-                ]
-            elif message['type'] == 'http.response.body':
-                body_parts.append(message.get('body', b''))
-
-        # Run ASGI app synchronously
-        loop = self._get_loop()
-        loop.run_until_complete(self.asgi_app(scope, receive, send))
-
-        # Check if we got a valid response
-        if status_code is None:
-            logger.error(f"No response received from ASGI app for {method} {path}")
-            status = "500 Internal Server Error"
-            response_headers = [('Content-Type', 'application/json')]
-            start_response(status, response_headers)
-            return [b'{"error": "No response from application"}']
-
-        # Map status codes to phrases
-        status_phrases = {
-            200: 'OK', 201: 'Created', 204: 'No Content',
-            301: 'Moved Permanently', 302: 'Found', 304: 'Not Modified',
-            400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden',
-            404: 'Not Found', 405: 'Method Not Allowed', 422: 'Unprocessable Entity',
-            500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable'
-        }
-        status = f"{status_code} {status_phrases.get(status_code, 'Unknown')}"
-
-        logger.info(f"Response: {status_code} for {method} {path}, body size: {sum(len(p) for p in body_parts)} bytes")
-
-        start_response(status, response_headers)
-        return body_parts
-
-
-# Create WSGI-compatible application from FastAPI ASGI app
-application = ASGItoWSGI(app)
-logger.info("WSGI application ready")
+# Use a2wsgi for ASGI to WSGI conversion
+try:
+    from a2wsgi import ASGIMiddleware
+    application = ASGIMiddleware(app)
+    logger.info("WSGI application ready (using a2wsgi)")
+except Exception as e:
+    logger.error(f"Failed to create WSGI application: {e}")
+    logger.error(traceback.format_exc())
+    raise
 
 if __name__ == "__main__":
     # For local development, run with uvicorn (native ASGI server)
