@@ -62,11 +62,17 @@ class ASGItoWSGI:
         logger.info("ASGItoWSGI adapter initialized")
 
     def _get_loop(self):
-        """Get or create the event loop."""
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-        return self._loop
+        """Get or create the event loop for this request."""
+        # Always create a new event loop for each request to avoid issues with uWSGI
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop
 
     def __call__(self, environ, start_response):
         try:
@@ -86,6 +92,8 @@ class ASGItoWSGI:
     def _handle_request(self, environ, start_response):
         # Build ASGI scope from WSGI environ
         path = environ.get('PATH_INFO', '/')
+        method = environ.get('REQUEST_METHOD', 'GET')
+        logger.info(f"Handling request: {method} {path}")
 
         scope = {
             'type': 'http',
@@ -142,9 +150,17 @@ class ASGItoWSGI:
             elif message['type'] == 'http.response.body':
                 body_parts.append(message.get('body', b''))
 
-        # Run ASGI app synchronously using persistent loop
+        # Run ASGI app synchronously
         loop = self._get_loop()
         loop.run_until_complete(self.asgi_app(scope, receive, send))
+
+        # Check if we got a valid response
+        if status_code is None:
+            logger.error(f"No response received from ASGI app for {method} {path}")
+            status = "500 Internal Server Error"
+            response_headers = [('Content-Type', 'application/json')]
+            start_response(status, response_headers)
+            return [b'{"error": "No response from application"}']
 
         # Map status codes to phrases
         status_phrases = {
@@ -155,6 +171,9 @@ class ASGItoWSGI:
             500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable'
         }
         status = f"{status_code} {status_phrases.get(status_code, 'Unknown')}"
+
+        logger.info(f"Response: {status_code} for {method} {path}, body size: {sum(len(p) for p in body_parts)} bytes")
+
         start_response(status, response_headers)
         return body_parts
 
