@@ -1,54 +1,13 @@
-"""
-WSGI entry point for the Trainings Backoffice application.
-
-Uses a2wsgi to convert the FastAPI ASGI application to WSGI for deployment
-on servers like AlwaysData that use uWSGI.
-"""
-
-import logging
+"""WSGI entry point for FastAPI on AlwaysData/uWSGI."""
 import sys
-import traceback
 from pathlib import Path
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stderr)
-    ]
-)
-logger = logging.getLogger(__name__)
+# Add backend to Python path
+sys.path.insert(0, str(Path(__file__).parent))
 
-# Add the backend directory to the Python path so imports work correctly
-backend_dir = Path(__file__).parent
-sys.path.insert(0, str(backend_dir))
+# Import FastAPI app
+from app.main import app
 
-# Import the FastAPI app with error handling
-try:
-    from app.main import app
-    logger.info("FastAPI application loaded successfully")
-except Exception as e:
-    logger.error(f"Failed to load FastAPI application: {e}")
-    logger.error(traceback.format_exc())
-    raise
-
-# Use a2wsgi for ASGI to WSGI conversion
-try:
-    from a2wsgi import ASGIMiddleware
-    application = ASGIMiddleware(app)
-    logger.info("WSGI application ready (using a2wsgi)")
-except Exception as e:
-    logger.error(f"Failed to create WSGI application: {e}")
-    logger.error(traceback.format_exc())
-    # Fallback to simple test app if a2wsgi fails
-    def application(environ, start_response):
-        status = '500 Internal Server Error'
-        headers = [('Content-Type', 'application/json')]
-        start_response(status, headers)
-        return [f'{{"error": "a2wsgi failed", "detail": "{str(e)}"}}'.encode('utf-8')]
-
-if __name__ == "__main__":
-    # For local development, run with uvicorn (native ASGI server)
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Convert ASGI to WSGI
+from a2wsgi import ASGIMiddleware
+application = ASGIMiddleware(app)
