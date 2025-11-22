@@ -1,46 +1,15 @@
-"""Simple WSGI entry point for AlwaysData."""
-import json
-from datetime import datetime
+"""WSGI entry point for Flask app on AlwaysData."""
+import sys
+import site
+from pathlib import Path
 
-def application(environ, start_response):
-    """Simple WSGI application."""
-    path = environ.get('PATH_INFO', '/')
+# Add user site-packages for pip --user installed packages
+user_site = Path.home() / ".local/lib/python3.11/site-packages"
+if user_site.exists():
+    site.addsitedir(str(user_site))
 
-    # Root endpoint
-    if path == '/':
-        status = '200 OK'
-        headers = [('Content-Type', 'application/json')]
-        start_response(status, headers)
-        return [json.dumps({
-            "app": "Trainings Backoffice",
-            "status": "running",
-            "version": "1.0.0"
-        }).encode('utf-8')]
+# Add backend to Python path
+sys.path.insert(0, str(Path(__file__).parent))
 
-    # Health check
-    if path == '/health':
-        status = '200 OK'
-        headers = [('Content-Type', 'application/json')]
-        start_response(status, headers)
-        return [json.dumps({
-            "status": "ok",
-            "timestamp": datetime.utcnow().isoformat()
-        }).encode('utf-8')]
-
-    # Ping
-    if path == '/ping':
-        status = '200 OK'
-        headers = [('Content-Type', 'application/json')]
-        start_response(status, headers)
-        return [json.dumps({
-            "ping": "pong"
-        }).encode('utf-8')]
-
-    # 404 for everything else
-    status = '404 Not Found'
-    headers = [('Content-Type', 'application/json')]
-    start_response(status, headers)
-    return [json.dumps({
-        "error": "Not found",
-        "path": path
-    }).encode('utf-8')]
+# Import Flask app
+from app.flask_app import application
