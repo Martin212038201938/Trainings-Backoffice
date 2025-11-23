@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from datetime import datetime, timedelta
 from functools import wraps
+from pathlib import Path
 
 from flask import Flask, jsonify, request, g, render_template
 from flask_cors import CORS
@@ -30,8 +32,12 @@ try:
 except Exception as e:
     logger.error(f"Failed to create database tables: {e}")
 
-# Create Flask app
-app = Flask(__name__, template_folder='templates', static_folder='static')
+# Create Flask app with absolute paths
+APP_DIR = Path(__file__).parent.absolute()
+TEMPLATE_DIR = APP_DIR / 'templates'
+STATIC_DIR = APP_DIR / 'static'
+
+app = Flask(__name__, template_folder=str(TEMPLATE_DIR), static_folder=str(STATIC_DIR))
 app.config['SECRET_KEY'] = settings.secret_key
 
 # Configure CORS
@@ -114,6 +120,14 @@ def admin_required(f):
 @app.route('/')
 def root():
     """Serve the admin frontend."""
+    template_path = TEMPLATE_DIR / 'index.html'
+    if not template_path.exists():
+        return jsonify({
+            "error": "Template not found",
+            "template_path": str(template_path),
+            "template_dir": str(TEMPLATE_DIR),
+            "exists": template_path.exists()
+        }), 500
     return render_template('index.html')
 
 
