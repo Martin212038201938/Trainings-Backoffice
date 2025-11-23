@@ -396,27 +396,31 @@ def create_brand():
     if not data:
         return jsonify({'error': 'Invalid JSON'}), 400
 
-    # Generate slug from name
-    import re
-    name = data.get('name', '')
-    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    try:
+        # Generate slug from name
+        import re
+        name = data.get('name', '')
+        slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
 
-    brand = Brand(
-        name=name,
-        slug=slug,
-        description=data.get('description')
-    )
+        brand = Brand(
+            name=name,
+            slug=slug,
+            description=data.get('description')
+        )
 
-    db = get_db()
-    db.add(brand)
-    db.commit()
-    db.refresh(brand)
+        db = get_db()
+        db.add(brand)
+        db.commit()
+        db.refresh(brand)
 
-    return jsonify({
-        "id": brand.id,
-        "name": brand.name,
-        "description": brand.description
-    }), 201
+        return jsonify({
+            "id": brand.id,
+            "name": brand.name,
+            "description": brand.description
+        }), 201
+    except Exception as e:
+        logger.error(f"Error creating brand: {e}")
+        return jsonify({'error': f'Fehler beim Erstellen: {str(e)}'}), 500
 
 
 @app.route('/brands/<int:brand_id>')
@@ -608,35 +612,39 @@ def create_trainer():
     if not data:
         return jsonify({'error': 'Invalid JSON'}), 400
 
-    # Handle name split if only 'name' is provided
-    first_name = data.get('first_name', '')
-    last_name = data.get('last_name', '')
-    if not first_name and not last_name and data.get('name'):
-        parts = data.get('name', '').split(' ', 1)
-        first_name = parts[0]
-        last_name = parts[1] if len(parts) > 1 else ''
+    try:
+        # Handle name split if only 'name' is provided
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+        if not first_name and not last_name and data.get('name'):
+            parts = data.get('name', '').split(' ', 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ''
 
-    trainer = Trainer(
-        first_name=first_name,
-        last_name=last_name,
-        email=data.get('email', ''),
-        phone=data.get('phone'),
-        address=data.get('address'),
-        vat_number=data.get('vat_number'),
-        linkedin_url=data.get('linkedin_url'),
-        specializations=data.get('specializations'),
-        bio=data.get('bio'),
-        notes=data.get('notes'),
-        region=data.get('region'),
-        default_day_rate=data.get('default_day_rate')
-    )
+        trainer = Trainer(
+            first_name=first_name,
+            last_name=last_name,
+            email=data.get('email', ''),
+            phone=data.get('phone'),
+            address=data.get('address'),
+            vat_number=data.get('vat_number'),
+            linkedin_url=data.get('linkedin_url'),
+            specializations=data.get('specializations'),
+            bio=data.get('bio'),
+            notes=data.get('notes'),
+            region=data.get('region'),
+            default_day_rate=data.get('default_day_rate')
+        )
 
-    db = get_db()
-    db.add(trainer)
-    db.commit()
-    db.refresh(trainer)
+        db = get_db()
+        db.add(trainer)
+        db.commit()
+        db.refresh(trainer)
 
-    return jsonify(trainer_to_dict(trainer)), 201
+        return jsonify(trainer_to_dict(trainer)), 201
+    except Exception as e:
+        logger.error(f"Error creating trainer: {e}")
+        return jsonify({'error': f'Fehler beim Erstellen: {str(e)}'}), 500
 
 
 @app.route('/trainers/<int:trainer_id>')
