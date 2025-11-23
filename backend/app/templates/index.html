@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trainings Backoffice</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+
+        /* Login */
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        .login-box h1 { margin-bottom: 1.5rem; color: #333; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        .btn-primary { background: #007bff; color: white; width: 100%; }
+        .btn-primary:hover { background: #0056b3; }
+        .error { color: #dc3545; margin-top: 1rem; }
+
+        /* Dashboard */
+        .app-container { display: none; }
+        .header { background: #343a40; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.5rem; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+        .btn-logout { background: #dc3545; color: white; padding: 0.5rem 1rem; }
+
+        .main-content { display: flex; min-height: calc(100vh - 60px); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #ddd; padding: 1rem 0; }
+        .sidebar a { display: block; padding: 0.75rem 1.5rem; color: #333; text-decoration: none; }
+        .sidebar a:hover, .sidebar a.active { background: #e9ecef; border-left: 3px solid #007bff; }
+
+        .content { flex: 1; padding: 2rem; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+        .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid #ddd; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .card-body { padding: 1.5rem; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; }
+        th { font-weight: 600; background: #f8f9fa; }
+
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-card h3 { font-size: 2rem; color: #007bff; }
+        .stat-card p { color: #6c757d; margin-top: 0.5rem; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 2rem; border-radius: 8px; width: 100%; max-width: 500px; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 1rem; }
+        .close { cursor: pointer; font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginScreen">
+        <div class="login-box">
+            <h1>Trainings Backoffice</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Benutzername</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Passwort</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Anmelden</button>
+                <div class="error" id="loginError"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div class="app-container" id="appContainer">
+        <header class="header">
+            <h1>Trainings Backoffice</h1>
+            <div class="user-info">
+                <span id="currentUser"></span>
+                <button class="btn btn-logout" onclick="logout()">Abmelden</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <nav class="sidebar">
+                <a href="#" onclick="showSection('dashboard')" class="active" data-section="dashboard">Dashboard</a>
+                <a href="#" onclick="showSection('trainings')" data-section="trainings">Trainings</a>
+                <a href="#" onclick="showSection('customers')" data-section="customers">Kunden</a>
+                <a href="#" onclick="showSection('trainers')" data-section="trainers">Trainer</a>
+                <a href="#" onclick="showSection('brands')" data-section="brands">Marken</a>
+            </nav>
+
+            <main class="content">
+                <!-- Dashboard -->
+                <div id="section-dashboard" class="section">
+                    <h2>Dashboard</h2>
+                    <div class="stats" id="dashboardStats">
+                        <div class="stat-card">
+                            <h3 id="statTrainings">-</h3>
+                            <p>Trainings</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statCustomers">-</h3>
+                            <p>Kunden</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statTrainers">-</h3>
+                            <p>Trainer</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statBrands">-</h3>
+                            <p>Marken</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">Letzte Trainings</div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Titel</th><th>Status</th><th>Datum</th></tr>
+                                </thead>
+                                <tbody id="recentTrainings"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trainings -->
+                <div id="section-trainings" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Trainings
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('training')">+ Neu</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Titel</th><th>Status</th><th>Datum</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="trainingsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customers -->
+                <div id="section-customers" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Kunden
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('customer')">+ Neu</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Name</th><th>Email</th><th>Firma</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="customersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trainers -->
+                <div id="section-trainers" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Trainer
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('trainer')">+ Neu</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Name</th><th>Email</th><th>Spezialisierung</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="trainersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Brands -->
+                <div id="section-brands" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Marken
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('brand')">+ Neu</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Name</th><th>Beschreibung</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="brandsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Modal -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Neu erstellen</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="createForm">
+                <div id="modalFields"></div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Speichern</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '';
+        let token = localStorage.getItem('token');
+        let currentUser = null;
+
+        // Check if logged in
+        if (token) {
+            checkAuth();
+        }
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                const res = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    token = data.access_token;
+                    localStorage.setItem('token', token);
+                    checkAuth();
+                } else {
+                    document.getElementById('loginError').textContent = data.error || 'Login fehlgeschlagen';
+                }
+            } catch (err) {
+                document.getElementById('loginError').textContent = 'Verbindungsfehler';
+            }
+        });
+
+        async function checkAuth() {
+            try {
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    currentUser = await res.json();
+                    document.getElementById('currentUser').textContent = currentUser.username;
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'block';
+                    loadDashboard();
+                } else {
+                    logout();
+                }
+            } catch (err) {
+                logout();
+            }
+        }
+
+        function logout() {
+            token = null;
+            localStorage.removeItem('token');
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+        }
+
+        function showSection(name) {
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            document.getElementById(`section-${name}`).style.display = 'block';
+            document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+            document.querySelector(`[data-section="${name}"]`).classList.add('active');
+
+            if (name === 'dashboard') loadDashboard();
+            else if (name === 'trainings') loadTrainings();
+            else if (name === 'customers') loadCustomers();
+            else if (name === 'trainers') loadTrainers();
+            else if (name === 'brands') loadBrands();
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const res = await fetch(`${API_URL}${endpoint}`, {
+                ...options,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            if (res.status === 401) logout();
+            return res;
+        }
+
+        async function loadDashboard() {
+            const [trainings, customers, trainers, brands] = await Promise.all([
+                apiCall('/trainings').then(r => r.json()),
+                apiCall('/customers').then(r => r.json()),
+                apiCall('/trainers').then(r => r.json()),
+                apiCall('/brands').then(r => r.json())
+            ]);
+
+            document.getElementById('statTrainings').textContent = trainings.length;
+            document.getElementById('statCustomers').textContent = customers.length;
+            document.getElementById('statTrainers').textContent = trainers.length;
+            document.getElementById('statBrands').textContent = brands.length;
+
+            const recent = trainings.slice(0, 5);
+            document.getElementById('recentTrainings').innerHTML = recent.map(t => `
+                <tr>
+                    <td>${t.title || '-'}</td>
+                    <td>${t.status || '-'}</td>
+                    <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3">Keine Trainings</td></tr>';
+        }
+
+        async function loadTrainings() {
+            const trainings = await apiCall('/trainings').then(r => r.json());
+            document.getElementById('trainingsTable').innerHTML = trainings.map(t => `
+                <tr>
+                    <td>${t.title || '-'}</td>
+                    <td>${t.status || '-'}</td>
+                    <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('trainings', ${t.id})">Löschen</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4">Keine Trainings</td></tr>';
+        }
+
+        async function loadCustomers() {
+            const customers = await apiCall('/customers').then(r => r.json());
+            document.getElementById('customersTable').innerHTML = customers.map(c => `
+                <tr>
+                    <td>${c.name || '-'}</td>
+                    <td>${c.email || '-'}</td>
+                    <td>${c.company || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('customers', ${c.id})">Löschen</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4">Keine Kunden</td></tr>';
+        }
+
+        async function loadTrainers() {
+            const trainers = await apiCall('/trainers').then(r => r.json());
+            document.getElementById('trainersTable').innerHTML = trainers.map(t => `
+                <tr>
+                    <td>${t.name || '-'}</td>
+                    <td>${t.email || '-'}</td>
+                    <td>${t.specialization || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4">Keine Trainer</td></tr>';
+        }
+
+        async function loadBrands() {
+            const brands = await apiCall('/brands').then(r => r.json());
+            document.getElementById('brandsTable').innerHTML = brands.map(b => `
+                <tr>
+                    <td>${b.name || '-'}</td>
+                    <td>${b.description || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="3">Keine Marken</td></tr>';
+        }
+
+        async function deleteItem(type, id) {
+            if (!confirm('Wirklich löschen?')) return;
+            await apiCall(`/${type}/${id}`, { method: 'DELETE' });
+            showSection(type);
+        }
+
+        const formFields = {
+            training: [
+                { name: 'title', label: 'Titel', type: 'text', required: true },
+                { name: 'description', label: 'Beschreibung', type: 'textarea' },
+                { name: 'date', label: 'Datum', type: 'date' },
+                { name: 'status', label: 'Status', type: 'select', options: ['planned', 'confirmed', 'delivered', 'invoiced'] }
+            ],
+            customer: [
+                { name: 'name', label: 'Name', type: 'text', required: true },
+                { name: 'email', label: 'Email', type: 'email' },
+                { name: 'phone', label: 'Telefon', type: 'text' },
+                { name: 'company', label: 'Firma', type: 'text' }
+            ],
+            trainer: [
+                { name: 'name', label: 'Name', type: 'text', required: true },
+                { name: 'email', label: 'Email', type: 'email' },
+                { name: 'phone', label: 'Telefon', type: 'text' },
+                { name: 'specialization', label: 'Spezialisierung', type: 'text' }
+            ],
+            brand: [
+                { name: 'name', label: 'Name', type: 'text', required: true },
+                { name: 'description', label: 'Beschreibung', type: 'textarea' }
+            ]
+        };
+
+        let currentFormType = '';
+
+        function showCreateModal(type) {
+            currentFormType = type;
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke' };
+            document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
+
+            const fields = formFields[type];
+            document.getElementById('modalFields').innerHTML = fields.map(f => `
+                <div class="form-group">
+                    <label>${f.label}</label>
+                    ${f.type === 'textarea'
+                        ? `<textarea name="${f.name}" style="width:100%;padding:0.5rem;min-height:80px;"></textarea>`
+                        : f.type === 'select'
+                        ? `<select name="${f.name}" style="width:100%;padding:0.5rem;">
+                            ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+                           </select>`
+                        : `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} style="width:100%;padding:0.5rem;">`
+                    }
+                </div>
+            `).join('');
+
+            document.getElementById('createModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('createModal').style.display = 'none';
+        }
+
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+
+            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands' };
+
+            await apiCall(`/${endpoints[currentFormType]}`, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+
+            closeModal();
+            showSection(endpoints[currentFormType]);
+        });
+    </script>
+</body>
+</html>
