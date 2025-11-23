@@ -32,15 +32,12 @@ jobs:
           echo "Deploying Trainings-Backoffice..."
           echo "========================================"
           echo "Deploy path: \$DEPLOY_PATH"
-
           # Create deployment directory if it doesn't exist
           if [ ! -d "\$DEPLOY_PATH" ]; then
             echo "Creating deployment directory..."
             mkdir -p "\$DEPLOY_PATH"
           fi
-
           cd "\$DEPLOY_PATH"
-
           # Initialize git repo if needed or pull latest
           if [ -d .git ]; then
             echo "Repository exists, pulling latest code..."
@@ -50,18 +47,15 @@ jobs:
             echo "Cloning repository..."
             git clone https://github.com/Martin212038201938/Trainings-Backoffice.git .
           fi
-
           # Navigate to backend and install dependencies
           if [ -d backend ]; then
             echo "Entering backend directory..."
             cd backend
-
             # Create .env file with secrets (variables expanded in GitHub runner)
             echo "Creating .env file with configuration..."
             echo "DATABASE_URL=$DB_URL" > .env
             echo "SECRET_KEY=$SECRET_KEY" >> .env
             echo "ENVIRONMENT=production" >> .env
-
             # Verify .env was created
             if [ -f .env ]; then
               echo "✅ .env file created successfully"
@@ -69,17 +63,14 @@ jobs:
               echo "❌ Failed to create .env file"
               exit 1
             fi
-
             if [ -f requirements.txt ]; then
               echo "Installing Python dependencies..."
               python3.11 -m pip install --user --upgrade pip 2>&1 || true
               python3.11 -m pip install --user -r requirements.txt 2>&1
               echo "✅ Dependencies installed"
             fi
-
             # Create logs directory
             mkdir -p "\$DEPLOY_PATH/logs"
-
             # Try to run migrations if alembic exists
             if [ -d alembic ]; then
               echo "Running database migrations..."
@@ -87,24 +78,14 @@ jobs:
               python3 -m alembic -c backend/alembic.ini upgrade head 2>&1 || echo "⚠️ Migrations skipped"
               cd backend
             fi
-
             cd ..
           fi
-
           # Restart the application to load new code
           echo "Restarting application..."
-          if command -v supervisorctl &> /dev/null; then
-            supervisorctl restart trainings-backoffice
-            echo "✅ Application restarted via supervisor"
-          else
-            # Alternative: Touch WSGI file to trigger reload (if using mod_wsgi)
-            touch /home/y-b/trainings-backoffice/backend/wsgi.py
-            echo "✅ WSGI file touched to trigger reload"
-          fi
-
+          touch /home/y-b/trainings-backoffice/backend/app/flask_app.py
+          echo "✅ Flask app touched to trigger WSGI reload"
           # Wait for application to start
           sleep 5
-
           echo "========================================"
           echo "✅ Deployment completed successfully!"
           echo "========================================"
@@ -112,7 +93,6 @@ jobs:
           echo "Deployment time: \$(date)"
           echo "Latest commit: \$(git log -1 --oneline 2>/dev/null || echo 'N/A')"
           ENDSSH
-
       - name: Verify deployment
         run: |
           echo "Verifying application..."
@@ -130,7 +110,6 @@ jobs:
             fi
           done
           echo "⚠️  Application verification timeout (may be starting up)"
-
       - name: Deployment Summary
         if: always()
         run: |
