@@ -51,8 +51,8 @@
         .stat-card h3 { font-size: 2rem; color: #007bff; }
         .stat-card p { color: #6c757d; margin-top: 0.5rem; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 2rem; border-radius: 8px; width: 100%; max-width: 500px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; overflow-y: auto; padding: 2rem 0; }
+        .modal-content { background: white; padding: 2rem; border-radius: 8px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; margin: auto; }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 1rem; }
         .close { cursor: pointer; font-size: 1.5rem; }
     </style>
@@ -367,16 +367,24 @@
 
         async function loadTrainers() {
             const trainers = await apiCall('/trainers').then(r => r.json());
-            document.getElementById('trainersTable').innerHTML = trainers.map(t => `
-                <tr>
-                    <td>${t.name || '-'}</td>
-                    <td>${t.email || '-'}</td>
-                    <td>${t.specialization || '-'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="4">Keine Trainer</td></tr>';
+            document.getElementById('trainersTable').innerHTML = trainers.map(t => {
+                const specs = t.specializations || {selected: [], custom: []};
+                const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
+                return `
+                    <tr>
+                        <td>
+                            ${t.photo_path ? `<img src="${t.photo_path}" style="width:30px;height:30px;border-radius:50%;margin-right:0.5rem;vertical-align:middle;">` : ''}
+                            ${t.name || '-'}
+                        </td>
+                        <td>${t.email || '-'}</td>
+                        <td>${allSpecs.slice(0, 3).join(', ') || '-'}${allSpecs.length > 3 ? '...' : ''}</td>
+                        <td>
+                            ${t.linkedin_url ? `<a href="${t.linkedin_url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right:0.25rem;">LinkedIn</a>` : ''}
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="4">Keine Trainer</td></tr>';
         }
 
         async function loadBrands() {
@@ -398,6 +406,13 @@
             showSection(type);
         }
 
+        // Predefined specializations for trainers
+        const TRAINER_SPECIALIZATIONS = [
+            'Leadership', 'Agile/Scrum', 'Project Management', 'Communication',
+            'Sales', 'Marketing', 'IT/Software', 'Data Science', 'Cloud/DevOps',
+            'Security', 'Change Management', 'Team Building', 'Presentation Skills'
+        ];
+
         const formFields = {
             training: [
                 { name: 'title', label: 'Titel', type: 'text', required: true },
@@ -411,17 +426,91 @@
                 { name: 'phone', label: 'Telefon', type: 'text' },
                 { name: 'company', label: 'Firma', type: 'text' }
             ],
-            trainer: [
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'email', label: 'Email', type: 'email' },
-                { name: 'phone', label: 'Telefon', type: 'text' },
-                { name: 'specialization', label: 'Spezialisierung', type: 'text' }
-            ],
+            trainer: 'custom', // Special handling for trainer form
             brand: [
                 { name: 'name', label: 'Name', type: 'text', required: true },
                 { name: 'description', label: 'Beschreibung', type: 'textarea' }
             ]
         };
+
+        function generateTrainerForm() {
+            return `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Vorname *</label>
+                        <input type="text" name="first_name" required style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Nachname *</label>
+                        <input type="text" name="last_name" required style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="text" name="phone" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>VAT/USt-ID</label>
+                        <input type="text" name="vat_number" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Adresse</label>
+                    <textarea name="address" style="width:100%;padding:0.5rem;min-height:60px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>LinkedIn URL</label>
+                    <input type="url" name="linkedin_url" placeholder="https://linkedin.com/in/..." style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Spezialisierungen</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0.5rem;">
+                        ${TRAINER_SPECIALIZATIONS.map(spec => `
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal;">
+                                <input type="checkbox" name="spec_selected" value="${spec}">
+                                ${spec}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div id="customSpecsContainer">
+                        <div class="custom-spec-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="text" name="spec_custom" placeholder="Eigene Spezialisierung..." style="flex:1;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <button type="button" onclick="addCustomSpecField()" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">+ Weitere</button>
+                </div>
+                <div class="form-group">
+                    <label>Tagessatz (€)</label>
+                    <input type="number" name="default_day_rate" step="0.01" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Region</label>
+                    <input type="text" name="region" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Bio</label>
+                    <textarea name="bio" style="width:100%;padding:0.5rem;min-height:80px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Notizen</label>
+                    <textarea name="notes" style="width:100%;padding:0.5rem;min-height:60px;"></textarea>
+                </div>
+            `;
+        }
+
+        function addCustomSpecField() {
+            const container = document.getElementById('customSpecsContainer');
+            const newRow = document.createElement('div');
+            newRow.className = 'custom-spec-row';
+            newRow.style.cssText = 'display: flex; gap: 0.5rem; margin-bottom: 0.5rem;';
+            newRow.innerHTML = `<input type="text" name="spec_custom" placeholder="Eigene Spezialisierung..." style="flex:1;padding:0.5rem;">`;
+            container.appendChild(newRow);
+        }
 
         let currentFormType = '';
 
@@ -431,19 +520,24 @@
             document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
 
             const fields = formFields[type];
-            document.getElementById('modalFields').innerHTML = fields.map(f => `
-                <div class="form-group">
-                    <label>${f.label}</label>
-                    ${f.type === 'textarea'
-                        ? `<textarea name="${f.name}" style="width:100%;padding:0.5rem;min-height:80px;"></textarea>`
-                        : f.type === 'select'
-                        ? `<select name="${f.name}" style="width:100%;padding:0.5rem;">
-                            ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
-                           </select>`
-                        : `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} style="width:100%;padding:0.5rem;">`
-                    }
-                </div>
-            `).join('');
+
+            if (fields === 'custom' && type === 'trainer') {
+                document.getElementById('modalFields').innerHTML = generateTrainerForm();
+            } else {
+                document.getElementById('modalFields').innerHTML = fields.map(f => `
+                    <div class="form-group">
+                        <label>${f.label}</label>
+                        ${f.type === 'textarea'
+                            ? `<textarea name="${f.name}" style="width:100%;padding:0.5rem;min-height:80px;"></textarea>`
+                            : f.type === 'select'
+                            ? `<select name="${f.name}" style="width:100%;padding:0.5rem;">
+                                ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+                               </select>`
+                            : `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} style="width:100%;padding:0.5rem;">`
+                        }
+                    </div>
+                `).join('');
+            }
 
             document.getElementById('createModal').style.display = 'flex';
         }
@@ -455,9 +549,32 @@
         document.getElementById('createForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData);
+            let data = {};
 
             const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands' };
+
+            if (currentFormType === 'trainer') {
+                // Handle trainer form specially
+                data = {
+                    first_name: formData.get('first_name'),
+                    last_name: formData.get('last_name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    address: formData.get('address'),
+                    vat_number: formData.get('vat_number'),
+                    linkedin_url: formData.get('linkedin_url'),
+                    default_day_rate: formData.get('default_day_rate') ? parseFloat(formData.get('default_day_rate')) : null,
+                    region: formData.get('region'),
+                    bio: formData.get('bio'),
+                    notes: formData.get('notes'),
+                    specializations: {
+                        selected: formData.getAll('spec_selected'),
+                        custom: formData.getAll('spec_custom').filter(s => s.trim() !== '')
+                    }
+                };
+            } else {
+                data = Object.fromEntries(formData);
+            }
 
             await apiCall(`/${endpoints[currentFormType]}`, {
                 method: 'POST',
