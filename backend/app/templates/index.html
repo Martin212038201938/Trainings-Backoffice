@@ -94,6 +94,10 @@
                 <a href="#" onclick="showSection('customers')" data-section="customers">Kunden</a>
                 <a href="#" onclick="showSection('trainers')" data-section="trainers">Trainer</a>
                 <a href="#" onclick="showSection('brands')" data-section="brands">Marken</a>
+                <div id="adminNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
+                    <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
+                    <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
+                </div>
             </nav>
 
             <main class="content">
@@ -202,6 +206,24 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Users (Admin only) -->
+                <div id="section-users" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Benutzer verwalten
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('user')">+ Neuer Benutzer</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Benutzername</th><th>Email</th><th>Rolle</th><th>Status</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="usersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
@@ -272,6 +294,12 @@
                     document.getElementById('currentUser').textContent = currentUser.username;
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
+
+                    // Show admin navigation if user is admin
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('adminNav').style.display = 'block';
+                    }
+
                     loadDashboard();
                 } else {
                     logout();
@@ -292,13 +320,40 @@
             document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
             document.getElementById(`section-${name}`).style.display = 'block';
             document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-            document.querySelector(`[data-section="${name}"]`).classList.add('active');
+            const navItem = document.querySelector(`[data-section="${name}"]`);
+            if (navItem) navItem.classList.add('active');
 
             if (name === 'dashboard') loadDashboard();
             else if (name === 'trainings') loadTrainings();
             else if (name === 'customers') loadCustomers();
             else if (name === 'trainers') loadTrainers();
             else if (name === 'brands') loadBrands();
+            else if (name === 'users') loadUsers();
+        }
+
+        async function loadUsers() {
+            if (currentUser.role !== 'admin') {
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">Keine Berechtigung</td></tr>';
+                return;
+            }
+            const users = await apiCall('/auth/users').then(r => r.json());
+            document.getElementById('usersTable').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.username}</td>
+                    <td>${u.email}</td>
+                    <td><span class="badge" style="background: ${u.role === 'admin' ? '#dc3545' : u.role === 'trainer' ? '#28a745' : '#007bff'}; color: white; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem;">${u.role}</span></td>
+                    <td>${u.is_active ? '<span style="color: #28a745;">Aktiv</span>' : '<span style="color: #dc3545;">Inaktiv</span>'}</td>
+                    <td>
+                        ${u.id !== currentUser.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Löschen</button>` : '<em>Aktueller User</em>'}
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="5">Keine Benutzer</td></tr>';
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Benutzer wirklich löschen?')) return;
+            await apiCall(`/auth/users/${id}`, { method: 'DELETE' });
+            loadUsers();
         }
 
         async function apiCall(endpoint, options = {}) {
@@ -430,6 +485,13 @@
             brand: [
                 { name: 'name', label: 'Name', type: 'text', required: true },
                 { name: 'description', label: 'Beschreibung', type: 'textarea' }
+            ],
+            user: [
+                { name: 'username', label: 'Benutzername', type: 'text', required: true },
+                { name: 'email', label: 'Email', type: 'email', required: true },
+                { name: 'password', label: 'Passwort', type: 'password', required: true },
+                { name: 'role', label: 'Rolle', type: 'select', options: ['backoffice_user', 'trainer', 'admin'] },
+                { name: 'is_active', label: 'Aktiv', type: 'checkbox' }
             ]
         };
 
@@ -516,7 +578,7 @@
 
         function showCreateModal(type) {
             currentFormType = type;
-            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke' };
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer' };
             document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
 
             const fields = formFields[type];
@@ -533,6 +595,8 @@
                             ? `<select name="${f.name}" style="width:100%;padding:0.5rem;">
                                 ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
                                </select>`
+                            : f.type === 'checkbox'
+                            ? `<input type="checkbox" name="${f.name}" checked>`
                             : `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} style="width:100%;padding:0.5rem;">`
                         }
                     </div>
@@ -551,7 +615,7 @@
             const formData = new FormData(e.target);
             let data = {};
 
-            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands' };
+            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands', user: 'auth/register' };
 
             if (currentFormType === 'trainer') {
                 // Handle trainer form specially
@@ -572,6 +636,15 @@
                         custom: formData.getAll('spec_custom').filter(s => s.trim() !== '')
                     }
                 };
+            } else if (currentFormType === 'user') {
+                // Handle user form - checkbox needs special handling
+                data = {
+                    username: formData.get('username'),
+                    email: formData.get('email'),
+                    password: formData.get('password'),
+                    role: formData.get('role'),
+                    is_active: formData.get('is_active') === 'on'
+                };
             } else {
                 data = Object.fromEntries(formData);
             }
@@ -582,7 +655,9 @@
             });
 
             closeModal();
-            showSection(endpoints[currentFormType]);
+            // Special handling for users section name
+            const sectionName = currentFormType === 'user' ? 'users' : endpoints[currentFormType];
+            showSection(sectionName);
         });
     </script>
 </body>
