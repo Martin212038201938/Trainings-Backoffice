@@ -552,7 +552,12 @@
 
         async function deleteUser(id) {
             if (!confirm('Benutzer wirklich löschen?')) return;
-            await apiCall(`/auth/users/${id}`, { method: 'DELETE' });
+            const res = await apiCall(`/auth/users/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                alert(error.error || 'Fehler beim Löschen');
+                return;
+            }
             loadUsers();
         }
 
@@ -657,7 +662,12 @@
 
         async function deleteItem(type, id) {
             if (!confirm('Wirklich löschen?')) return;
-            await apiCall(`/${type}/${id}`, { method: 'DELETE' });
+            const res = await apiCall(`/${type}/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                alert(error.error || 'Fehler beim Löschen');
+                return;
+            }
             showSection(type);
         }
 
@@ -849,10 +859,16 @@
                 data = Object.fromEntries(formData);
             }
 
-            await apiCall(`/${endpoints[currentFormType]}`, {
+            const res = await apiCall(`/${endpoints[currentFormType]}`, {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                alert(error.error || 'Fehler beim Speichern');
+                return;
+            }
 
             closeModal();
             // Special handling for users section name
