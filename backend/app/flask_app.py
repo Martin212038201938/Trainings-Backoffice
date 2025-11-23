@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import Flask, jsonify, request, g
+from flask import Flask, jsonify, request, g, render_template
 from flask_cors import CORS
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,7 @@ except Exception as e:
     logger.error(f"Failed to create database tables: {e}")
 
 # Create Flask app
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = settings.secret_key
 
 # Configure CORS
@@ -113,6 +113,13 @@ def admin_required(f):
 
 @app.route('/')
 def root():
+    """Serve the admin frontend."""
+    return render_template('index.html')
+
+
+@app.route('/api')
+def api_root():
+    """API status endpoint."""
     return jsonify({
         "app": settings.app_name,
         "status": "running",
