@@ -899,6 +899,7 @@ def trainer_dashboard():
             "training_id": a.training_id,
             "status": a.status,
             "proposed_rate": a.proposed_rate,
+            "message": a.message,
             "created_at": a.created_at.isoformat() if a.created_at else None
         } for a in my_applications]
     })

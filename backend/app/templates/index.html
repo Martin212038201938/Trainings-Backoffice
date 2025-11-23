@@ -289,7 +289,7 @@
                         <div class="card-body">
                             <table>
                                 <thead>
-                                    <tr><th>Training</th><th>Tagessatz</th><th>Status</th><th>Datum</th><th>Aktionen</th></tr>
+                                    <tr><th>Training</th><th>Tagessatz</th><th>Nachricht</th><th>Status</th><th>Datum</th><th>Aktionen</th></tr>
                                 </thead>
                                 <tbody id="myApplicationsTable"></tbody>
                             </table>
@@ -445,13 +445,14 @@
                     <tr>
                         <td>Training #${a.training_id}</td>
                         <td>${a.proposed_rate ? a.proposed_rate.toFixed(2) + ' €' : '-'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${a.message || ''}">${a.message || '-'}</td>
                         <td><span style="color: ${a.status === 'accepted' ? '#28a745' : a.status === 'rejected' ? '#dc3545' : '#ffc107'};">${a.status}</span></td>
                         <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('de') : '-'}</td>
                         <td>
                             ${a.status === 'pending' ? `<button class="btn btn-sm btn-danger" onclick="withdrawApplication(${a.id})">Zurückziehen</button>` : ''}
                         </td>
                     </tr>
-                `).join('') || '<tr><td colspan="5">Keine Bewerbungen</td></tr>';
+                `).join('') || '<tr><td colspan="6">Keine Bewerbungen</td></tr>';
             } catch (err) {
                 console.error('Error loading trainer dashboard:', err);
             }
