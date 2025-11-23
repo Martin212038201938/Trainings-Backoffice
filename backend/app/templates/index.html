@@ -393,9 +393,13 @@
 
         function logout() {
             token = null;
+            currentUser = null;
             localStorage.removeItem('token');
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
+            document.getElementById('currentUser').textContent = '';
+            document.getElementById('adminNav').style.display = 'none';
+            document.getElementById('trainerNav').style.display = 'none';
         }
 
         function showSection(name) {
