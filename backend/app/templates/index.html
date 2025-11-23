@@ -94,6 +94,15 @@
                 <a href="#" onclick="showSection('customers')" data-section="customers">Kunden</a>
                 <a href="#" onclick="showSection('trainers')" data-section="trainers">Trainer</a>
                 <a href="#" onclick="showSection('brands')" data-section="brands">Marken</a>
+                <div id="adminNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
+                    <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
+                    <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
+                </div>
+                <div id="trainerNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
+                    <small style="padding: 0 1.5rem; color: #6c757d;">Trainer Portal</small>
+                    <a href="#" onclick="showSection('trainer-dashboard')" data-section="trainer-dashboard">Mein Dashboard</a>
+                    <a href="#" onclick="showSection('open-trainings')" data-section="open-trainings">Offene Trainings</a>
+                </div>
             </nav>
 
             <main class="content">
@@ -202,6 +211,76 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Users (Admin only) -->
+                <div id="section-users" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Benutzer verwalten
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('user')">+ Neuer Benutzer</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Benutzername</th><th>Email</th><th>Rolle</th><th>Status</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="usersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trainer Dashboard -->
+                <div id="section-trainer-dashboard" class="section" style="display:none;">
+                    <h2>Mein Trainer Dashboard</h2>
+                    <div class="stats" id="trainerStats">
+                        <div class="stat-card">
+                            <h3 id="statMyTrainings">-</h3>
+                            <p>Meine Trainings</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statCompleted">-</h3>
+                            <p>Abgeschlossen</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statEarnings">-</h3>
+                            <p>Verdienst (€)</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statPendingApps">-</h3>
+                            <p>Offene Bewerbungen</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">Meine letzten Trainings</div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Titel</th><th>Datum</th><th>Status</th><th>Verdienst</th></tr>
+                                </thead>
+                                <tbody id="myTrainingsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top: 1rem;">
+                        <div class="card-header">Meine Bewerbungen</div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Training</th><th>Tagessatz</th><th>Status</th><th>Datum</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="myApplicationsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Open Trainings for Application -->
+                <div id="section-open-trainings" class="section" style="display:none;">
+                    <h2>Offene Trainings</h2>
+                    <p style="color: #6c757d; margin-bottom: 1rem;">Hier findest du Trainings, auf die du dich bewerben kannst.</p>
+                    <div id="openTrainingsList"></div>
+                </div>
             </main>
         </div>
     </div>
@@ -272,6 +351,15 @@
                     document.getElementById('currentUser').textContent = currentUser.username;
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
+
+                    // Show role-specific navigation
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('adminNav').style.display = 'block';
+                    }
+                    if (currentUser.role === 'trainer') {
+                        document.getElementById('trainerNav').style.display = 'block';
+                    }
+
                     loadDashboard();
                 } else {
                     logout();
@@ -292,13 +380,153 @@
             document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
             document.getElementById(`section-${name}`).style.display = 'block';
             document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-            document.querySelector(`[data-section="${name}"]`).classList.add('active');
+            const navItem = document.querySelector(`[data-section="${name}"]`);
+            if (navItem) navItem.classList.add('active');
 
             if (name === 'dashboard') loadDashboard();
             else if (name === 'trainings') loadTrainings();
             else if (name === 'customers') loadCustomers();
             else if (name === 'trainers') loadTrainers();
             else if (name === 'brands') loadBrands();
+            else if (name === 'users') loadUsers();
+            else if (name === 'trainer-dashboard') loadTrainerDashboard();
+            else if (name === 'open-trainings') loadOpenTrainings();
+        }
+
+        async function loadTrainerDashboard() {
+            try {
+                const data = await apiCall('/trainer/dashboard').then(r => r.json());
+
+                if (data.error) {
+                    document.getElementById('trainerStats').innerHTML = `<p style="color: #dc3545;">${data.error}</p>`;
+                    return;
+                }
+
+                // Update stats
+                document.getElementById('statMyTrainings').textContent = data.stats.total_trainings;
+                document.getElementById('statCompleted').textContent = data.stats.completed_trainings;
+                document.getElementById('statEarnings').textContent = data.stats.total_earnings.toFixed(2);
+                document.getElementById('statPendingApps').textContent = data.stats.pending_applications;
+
+                // Update my trainings table
+                document.getElementById('myTrainingsTable').innerHTML = data.recent_trainings.map(t => `
+                    <tr>
+                        <td>${t.title || '-'}</td>
+                        <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
+                        <td>${t.status || '-'}</td>
+                        <td>${t.earnings ? t.earnings.toFixed(2) + ' €' : '-'}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">Keine Trainings</td></tr>';
+
+                // Update applications table
+                document.getElementById('myApplicationsTable').innerHTML = data.applications.map(a => `
+                    <tr>
+                        <td>Training #${a.training_id}</td>
+                        <td>${a.proposed_rate ? a.proposed_rate.toFixed(2) + ' €' : '-'}</td>
+                        <td><span style="color: ${a.status === 'accepted' ? '#28a745' : a.status === 'rejected' ? '#dc3545' : '#ffc107'};">${a.status}</span></td>
+                        <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('de') : '-'}</td>
+                        <td>
+                            ${a.status === 'pending' ? `<button class="btn btn-sm btn-danger" onclick="withdrawApplication(${a.id})">Zurückziehen</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5">Keine Bewerbungen</td></tr>';
+            } catch (err) {
+                console.error('Error loading trainer dashboard:', err);
+            }
+        }
+
+        async function loadOpenTrainings() {
+            try {
+                const trainings = await apiCall('/trainer/open-trainings').then(r => r.json());
+
+                if (trainings.error) {
+                    document.getElementById('openTrainingsList').innerHTML = `<p style="color: #dc3545;">${trainings.error}</p>`;
+                    return;
+                }
+
+                document.getElementById('openTrainingsList').innerHTML = trainings.map(t => `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div class="card-header">
+                            ${t.title}
+                            ${t.already_applied
+                                ? '<span style="color: #28a745; float: right;">✓ Beworben</span>'
+                                : `<button class="btn btn-sm btn-success" style="float: right;" onclick="applyForTraining(${t.id})">Bewerben</button>`
+                            }
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Datum:</strong> ${t.start_date ? new Date(t.start_date).toLocaleDateString('de') : 'TBD'} ${t.end_date ? '- ' + new Date(t.end_date).toLocaleDateString('de') : ''}</p>
+                            <p><strong>Dauer:</strong> ${t.duration_days || '?'} Tag(e)</p>
+                            <p><strong>Ort:</strong> ${t.location || 'TBD'}</p>
+                            ${t.description ? `<p><strong>Details:</strong> ${t.description}</p>` : ''}
+                        </div>
+                    </div>
+                `).join('') || '<p>Keine offenen Trainings verfügbar.</p>';
+            } catch (err) {
+                console.error('Error loading open trainings:', err);
+            }
+        }
+
+        async function applyForTraining(trainingId) {
+            const rate = prompt('Dein Tagessatz (€):', '');
+            if (rate === null) return;
+
+            const message = prompt('Nachricht (optional):', '');
+
+            try {
+                const res = await apiCall(`/trainer/apply/${trainingId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        proposed_rate: rate ? parseFloat(rate) : null,
+                        message: message || null
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Bewerbung erfolgreich eingereicht!');
+                    loadOpenTrainings();
+                } else {
+                    alert(data.error || 'Fehler bei der Bewerbung');
+                }
+            } catch (err) {
+                alert('Fehler bei der Bewerbung');
+            }
+        }
+
+        async function withdrawApplication(applicationId) {
+            if (!confirm('Bewerbung wirklich zurückziehen?')) return;
+
+            try {
+                await apiCall(`/trainer/applications/${applicationId}`, { method: 'DELETE' });
+                loadTrainerDashboard();
+            } catch (err) {
+                alert('Fehler beim Zurückziehen');
+            }
+        }
+
+        async function loadUsers() {
+            if (currentUser.role !== 'admin') {
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">Keine Berechtigung</td></tr>';
+                return;
+            }
+            const users = await apiCall('/auth/users').then(r => r.json());
+            document.getElementById('usersTable').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.username}</td>
+                    <td>${u.email}</td>
+                    <td><span class="badge" style="background: ${u.role === 'admin' ? '#dc3545' : u.role === 'trainer' ? '#28a745' : '#007bff'}; color: white; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem;">${u.role}</span></td>
+                    <td>${u.is_active ? '<span style="color: #28a745;">Aktiv</span>' : '<span style="color: #dc3545;">Inaktiv</span>'}</td>
+                    <td>
+                        ${u.id !== currentUser.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Löschen</button>` : '<em>Aktueller User</em>'}
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="5">Keine Benutzer</td></tr>';
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Benutzer wirklich löschen?')) return;
+            await apiCall(`/auth/users/${id}`, { method: 'DELETE' });
+            loadUsers();
         }
 
         async function apiCall(endpoint, options = {}) {
@@ -430,6 +658,13 @@
             brand: [
                 { name: 'name', label: 'Name', type: 'text', required: true },
                 { name: 'description', label: 'Beschreibung', type: 'textarea' }
+            ],
+            user: [
+                { name: 'username', label: 'Benutzername', type: 'text', required: true },
+                { name: 'email', label: 'Email', type: 'email', required: true },
+                { name: 'password', label: 'Passwort', type: 'password', required: true },
+                { name: 'role', label: 'Rolle', type: 'select', options: ['backoffice_user', 'trainer', 'admin'] },
+                { name: 'is_active', label: 'Aktiv', type: 'checkbox' }
             ]
         };
 
@@ -516,7 +751,7 @@
 
         function showCreateModal(type) {
             currentFormType = type;
-            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke' };
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer' };
             document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
 
             const fields = formFields[type];
@@ -533,6 +768,8 @@
                             ? `<select name="${f.name}" style="width:100%;padding:0.5rem;">
                                 ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
                                </select>`
+                            : f.type === 'checkbox'
+                            ? `<input type="checkbox" name="${f.name}" checked>`
                             : `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} style="width:100%;padding:0.5rem;">`
                         }
                     </div>
@@ -551,7 +788,7 @@
             const formData = new FormData(e.target);
             let data = {};
 
-            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands' };
+            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands', user: 'auth/register' };
 
             if (currentFormType === 'trainer') {
                 // Handle trainer form specially
@@ -572,6 +809,15 @@
                         custom: formData.getAll('spec_custom').filter(s => s.trim() !== '')
                     }
                 };
+            } else if (currentFormType === 'user') {
+                // Handle user form - checkbox needs special handling
+                data = {
+                    username: formData.get('username'),
+                    email: formData.get('email'),
+                    password: formData.get('password'),
+                    role: formData.get('role'),
+                    is_active: formData.get('is_active') === 'on'
+                };
             } else {
                 data = Object.fromEntries(formData);
             }
@@ -582,7 +828,9 @@
             });
 
             closeModal();
-            showSection(endpoints[currentFormType]);
+            // Special handling for users section name
+            const sectionName = currentFormType === 'user' ? 'users' : endpoints[currentFormType];
+            showSection(sectionName);
         });
     </script>
 </body>

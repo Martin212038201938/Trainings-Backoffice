@@ -848,5 +848,179 @@ def delete_training(training_id):
     return jsonify({"status": "deleted"})
 
 
+# ============== Trainer Portal Routes ==============
+
+@app.route('/trainer/dashboard')
+@token_required
+def trainer_dashboard():
+    """Get trainer dashboard data - only for trainers."""
+    if g.current_user.role != 'trainer':
+        return jsonify({'error': 'Trainer access required'}), 403
+
+    db = get_db()
+
+    # Find trainer linked to this user
+    trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked to this account'}), 404
+
+    # Get trainer's trainings
+    my_trainings = db.query(Training).filter(Training.trainer_id == trainer.id).all()
+
+    # Calculate statistics
+    total_trainings = len(my_trainings)
+    completed_trainings = len([t for t in my_trainings if t.status in ['delivered', 'invoiced']])
+    total_earnings = sum(t.tagessatz or 0 for t in my_trainings if t.status == 'invoiced')
+
+    # Get my applications
+    from .models import TrainerApplication
+    my_applications = db.query(TrainerApplication).filter(
+        TrainerApplication.trainer_id == trainer.id
+    ).all()
+
+    return jsonify({
+        "trainer": trainer_to_dict(trainer),
+        "stats": {
+            "total_trainings": total_trainings,
+            "completed_trainings": completed_trainings,
+            "total_earnings": total_earnings,
+            "pending_applications": len([a for a in my_applications if a.status == 'pending']),
+            "accepted_applications": len([a for a in my_applications if a.status == 'accepted'])
+        },
+        "recent_trainings": [{
+            "id": t.id,
+            "title": t.title,
+            "date": t.start_date.isoformat() if t.start_date else None,
+            "status": t.status,
+            "earnings": t.tagessatz
+        } for t in my_trainings[:5]],
+        "applications": [{
+            "id": a.id,
+            "training_id": a.training_id,
+            "status": a.status,
+            "proposed_rate": a.proposed_rate,
+            "created_at": a.created_at.isoformat() if a.created_at else None
+        } for a in my_applications]
+    })
+
+
+@app.route('/trainer/open-trainings')
+@token_required
+def get_open_trainings():
+    """Get trainings that trainers can apply for."""
+    if g.current_user.role != 'trainer':
+        return jsonify({'error': 'Trainer access required'}), 403
+
+    db = get_db()
+
+    # Find trainer linked to this user
+    trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked'}), 404
+
+    # Get trainings without assigned trainer (open for applications)
+    from .models import TrainerApplication
+    open_trainings = db.query(Training).filter(
+        Training.trainer_id == None,
+        Training.status.in_(['lead', 'trainer_outreach', 'planning'])
+    ).all()
+
+    # Check which ones the trainer already applied for
+    my_application_training_ids = [a.training_id for a in db.query(TrainerApplication).filter(
+        TrainerApplication.trainer_id == trainer.id
+    ).all()]
+
+    return jsonify([{
+        "id": t.id,
+        "title": t.title,
+        "description": t.location_details,
+        "start_date": t.start_date.isoformat() if t.start_date else None,
+        "end_date": t.end_date.isoformat() if t.end_date else None,
+        "duration_days": t.duration_days,
+        "location": t.location,
+        "status": t.status,
+        "already_applied": t.id in my_application_training_ids
+    } for t in open_trainings])
+
+
+@app.route('/trainer/apply/<int:training_id>', methods=['POST'])
+@token_required
+def apply_for_training(training_id):
+    """Apply for a training as a trainer."""
+    if g.current_user.role != 'trainer':
+        return jsonify({'error': 'Trainer access required'}), 403
+
+    db = get_db()
+
+    trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked'}), 404
+
+    training = db.query(Training).filter(Training.id == training_id).first()
+    if not training:
+        return jsonify({'error': 'Training not found'}), 404
+
+    # Check if already applied
+    from .models import TrainerApplication
+    existing = db.query(TrainerApplication).filter(
+        TrainerApplication.training_id == training_id,
+        TrainerApplication.trainer_id == trainer.id
+    ).first()
+
+    if existing:
+        return jsonify({'error': 'Already applied for this training'}), 400
+
+    data = request.get_json() or {}
+
+    application = TrainerApplication(
+        training_id=training_id,
+        trainer_id=trainer.id,
+        message=data.get('message'),
+        proposed_rate=data.get('proposed_rate') or trainer.default_day_rate,
+        status='pending'
+    )
+
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+
+    return jsonify({
+        "id": application.id,
+        "status": "pending",
+        "message": "Application submitted successfully"
+    }), 201
+
+
+@app.route('/trainer/applications/<int:application_id>', methods=['DELETE'])
+@token_required
+def withdraw_application(application_id):
+    """Withdraw a training application."""
+    if g.current_user.role != 'trainer':
+        return jsonify({'error': 'Trainer access required'}), 403
+
+    db = get_db()
+
+    trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked'}), 404
+
+    from .models import TrainerApplication
+    application = db.query(TrainerApplication).filter(
+        TrainerApplication.id == application_id,
+        TrainerApplication.trainer_id == trainer.id
+    ).first()
+
+    if not application:
+        return jsonify({'error': 'Application not found'}), 404
+
+    if application.status != 'pending':
+        return jsonify({'error': 'Can only withdraw pending applications'}), 400
+
+    db.delete(application)
+    db.commit()
+
+    return jsonify({"status": "withdrawn"})
+
+
 # WSGI application
 application = app

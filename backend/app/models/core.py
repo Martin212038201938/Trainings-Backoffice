@@ -78,6 +78,7 @@ class Trainer(Base, TimestampMixin):
     __tablename__ = "trainers"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, unique=True)  # Link to user account
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False)
@@ -94,6 +95,7 @@ class Trainer(Base, TimestampMixin):
     bio = Column(Text)
     notes = Column(Text)
 
+    user = relationship("User", backref="trainer")
     brands = relationship("Brand", secondary=trainer_brands, backref="trainers")
     trainings = relationship("Training", back_populates="trainer")
 
@@ -199,3 +201,19 @@ class EmailTemplate(Base, TimestampMixin):
     subject = Column(String(255))
     body = Column(Text)
     description = Column(Text)
+
+
+class TrainerApplication(Base, TimestampMixin):
+    """Trainer applications for open training positions."""
+    __tablename__ = "trainer_applications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    training_id = Column(Integer, ForeignKey("trainings.id", ondelete="CASCADE"), nullable=False)
+    trainer_id = Column(Integer, ForeignKey("trainers.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(50), default="pending")  # pending, accepted, rejected
+    message = Column(Text)  # Optional message from trainer
+    proposed_rate = Column(Float)  # Trainer's proposed day rate
+    admin_notes = Column(Text)  # Admin notes on application
+
+    training = relationship("Training", backref="applications")
+    trainer = relationship("Trainer", backref="applications")
