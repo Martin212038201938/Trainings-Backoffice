@@ -98,6 +98,11 @@
                     <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
                     <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
                 </div>
+                <div id="trainerNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
+                    <small style="padding: 0 1.5rem; color: #6c757d;">Trainer Portal</small>
+                    <a href="#" onclick="showSection('trainer-dashboard')" data-section="trainer-dashboard">Mein Dashboard</a>
+                    <a href="#" onclick="showSection('open-trainings')" data-section="open-trainings">Offene Trainings</a>
+                </div>
             </nav>
 
             <main class="content">
@@ -224,6 +229,58 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Trainer Dashboard -->
+                <div id="section-trainer-dashboard" class="section" style="display:none;">
+                    <h2>Mein Trainer Dashboard</h2>
+                    <div class="stats" id="trainerStats">
+                        <div class="stat-card">
+                            <h3 id="statMyTrainings">-</h3>
+                            <p>Meine Trainings</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statCompleted">-</h3>
+                            <p>Abgeschlossen</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statEarnings">-</h3>
+                            <p>Verdienst (€)</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="statPendingApps">-</h3>
+                            <p>Offene Bewerbungen</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">Meine letzten Trainings</div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Titel</th><th>Datum</th><th>Status</th><th>Verdienst</th></tr>
+                                </thead>
+                                <tbody id="myTrainingsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top: 1rem;">
+                        <div class="card-header">Meine Bewerbungen</div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr><th>Training</th><th>Tagessatz</th><th>Status</th><th>Datum</th><th>Aktionen</th></tr>
+                                </thead>
+                                <tbody id="myApplicationsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Open Trainings for Application -->
+                <div id="section-open-trainings" class="section" style="display:none;">
+                    <h2>Offene Trainings</h2>
+                    <p style="color: #6c757d; margin-bottom: 1rem;">Hier findest du Trainings, auf die du dich bewerben kannst.</p>
+                    <div id="openTrainingsList"></div>
+                </div>
             </main>
         </div>
     </div>
@@ -295,9 +352,12 @@
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
 
-                    // Show admin navigation if user is admin
+                    // Show role-specific navigation
                     if (currentUser.role === 'admin') {
                         document.getElementById('adminNav').style.display = 'block';
+                    }
+                    if (currentUser.role === 'trainer') {
+                        document.getElementById('trainerNav').style.display = 'block';
                     }
 
                     loadDashboard();
@@ -329,6 +389,119 @@
             else if (name === 'trainers') loadTrainers();
             else if (name === 'brands') loadBrands();
             else if (name === 'users') loadUsers();
+            else if (name === 'trainer-dashboard') loadTrainerDashboard();
+            else if (name === 'open-trainings') loadOpenTrainings();
+        }
+
+        async function loadTrainerDashboard() {
+            try {
+                const data = await apiCall('/trainer/dashboard').then(r => r.json());
+
+                if (data.error) {
+                    document.getElementById('trainerStats').innerHTML = `<p style="color: #dc3545;">${data.error}</p>`;
+                    return;
+                }
+
+                // Update stats
+                document.getElementById('statMyTrainings').textContent = data.stats.total_trainings;
+                document.getElementById('statCompleted').textContent = data.stats.completed_trainings;
+                document.getElementById('statEarnings').textContent = data.stats.total_earnings.toFixed(2);
+                document.getElementById('statPendingApps').textContent = data.stats.pending_applications;
+
+                // Update my trainings table
+                document.getElementById('myTrainingsTable').innerHTML = data.recent_trainings.map(t => `
+                    <tr>
+                        <td>${t.title || '-'}</td>
+                        <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
+                        <td>${t.status || '-'}</td>
+                        <td>${t.earnings ? t.earnings.toFixed(2) + ' €' : '-'}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">Keine Trainings</td></tr>';
+
+                // Update applications table
+                document.getElementById('myApplicationsTable').innerHTML = data.applications.map(a => `
+                    <tr>
+                        <td>Training #${a.training_id}</td>
+                        <td>${a.proposed_rate ? a.proposed_rate.toFixed(2) + ' €' : '-'}</td>
+                        <td><span style="color: ${a.status === 'accepted' ? '#28a745' : a.status === 'rejected' ? '#dc3545' : '#ffc107'};">${a.status}</span></td>
+                        <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('de') : '-'}</td>
+                        <td>
+                            ${a.status === 'pending' ? `<button class="btn btn-sm btn-danger" onclick="withdrawApplication(${a.id})">Zurückziehen</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5">Keine Bewerbungen</td></tr>';
+            } catch (err) {
+                console.error('Error loading trainer dashboard:', err);
+            }
+        }
+
+        async function loadOpenTrainings() {
+            try {
+                const trainings = await apiCall('/trainer/open-trainings').then(r => r.json());
+
+                if (trainings.error) {
+                    document.getElementById('openTrainingsList').innerHTML = `<p style="color: #dc3545;">${trainings.error}</p>`;
+                    return;
+                }
+
+                document.getElementById('openTrainingsList').innerHTML = trainings.map(t => `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div class="card-header">
+                            ${t.title}
+                            ${t.already_applied
+                                ? '<span style="color: #28a745; float: right;">✓ Beworben</span>'
+                                : `<button class="btn btn-sm btn-success" style="float: right;" onclick="applyForTraining(${t.id})">Bewerben</button>`
+                            }
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Datum:</strong> ${t.start_date ? new Date(t.start_date).toLocaleDateString('de') : 'TBD'} ${t.end_date ? '- ' + new Date(t.end_date).toLocaleDateString('de') : ''}</p>
+                            <p><strong>Dauer:</strong> ${t.duration_days || '?'} Tag(e)</p>
+                            <p><strong>Ort:</strong> ${t.location || 'TBD'}</p>
+                            ${t.description ? `<p><strong>Details:</strong> ${t.description}</p>` : ''}
+                        </div>
+                    </div>
+                `).join('') || '<p>Keine offenen Trainings verfügbar.</p>';
+            } catch (err) {
+                console.error('Error loading open trainings:', err);
+            }
+        }
+
+        async function applyForTraining(trainingId) {
+            const rate = prompt('Dein Tagessatz (€):', '');
+            if (rate === null) return;
+
+            const message = prompt('Nachricht (optional):', '');
+
+            try {
+                const res = await apiCall(`/trainer/apply/${trainingId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        proposed_rate: rate ? parseFloat(rate) : null,
+                        message: message || null
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Bewerbung erfolgreich eingereicht!');
+                    loadOpenTrainings();
+                } else {
+                    alert(data.error || 'Fehler bei der Bewerbung');
+                }
+            } catch (err) {
+                alert('Fehler bei der Bewerbung');
+            }
+        }
+
+        async function withdrawApplication(applicationId) {
+            if (!confirm('Bewerbung wirklich zurückziehen?')) return;
+
+            try {
+                await apiCall(`/trainer/applications/${applicationId}`, { method: 'DELETE' });
+                loadTrainerDashboard();
+            } catch (err) {
+                alert('Fehler beim Zurückziehen');
+            }
         }
 
         async function loadUsers() {
