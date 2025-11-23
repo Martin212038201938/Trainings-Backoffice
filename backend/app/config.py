@@ -10,7 +10,7 @@ ENV_FILE = BACKEND_DIR / ".env"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Trainings Backoffice"
+    app_name: str = "Yellow-Boat Academy"
     environment: str = "local"
     database_url: str = "sqlite:///./trainings.db"
     openai_api_key: str | None = None
