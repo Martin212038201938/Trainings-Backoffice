@@ -682,13 +682,16 @@
 
         async function loadBrands() {
             try {
+                console.log('Loading brands...');
                 const res = await apiCall('/brands');
+                console.log('Brands response status:', res.status);
                 if (!res.ok) {
                     console.error('Failed to load brands:', res.status);
                     document.getElementById('brandsTable').innerHTML = '<tr><td colspan="3">Fehler beim Laden</td></tr>';
                     return;
                 }
                 const brands = await res.json();
+                console.log('Loaded brands:', brands);
                 document.getElementById('brandsTable').innerHTML = brands.map(b => `
                     <tr>
                         <td>${b.name || '-'}</td>
@@ -908,15 +911,22 @@
                 body: JSON.stringify(data)
             });
 
+            console.log('Create response status:', res.status);
+
             if (!res.ok) {
                 const error = await res.json().catch(() => ({}));
+                console.error('Create error:', error);
                 alert(error.error || 'Fehler beim Speichern');
                 return;
             }
 
+            const result = await res.json();
+            console.log('Created item:', result);
+
             closeModal();
             // Special handling for users section name
             const sectionName = currentFormType === 'user' ? 'users' : endpoints[currentFormType];
+            console.log('Refreshing section:', sectionName);
             showSection(sectionName);
         });
     </script>
