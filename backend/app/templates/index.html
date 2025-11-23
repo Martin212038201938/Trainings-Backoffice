@@ -598,66 +598,110 @@
         }
 
         async function loadTrainings() {
-            const trainings = await apiCall('/trainings').then(r => r.json());
-            document.getElementById('trainingsTable').innerHTML = trainings.map(t => `
-                <tr>
-                    <td>${t.title || '-'}</td>
-                    <td>${t.status || '-'}</td>
-                    <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteItem('trainings', ${t.id})">Löschen</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="4">Keine Trainings</td></tr>';
+            try {
+                const res = await apiCall('/trainings');
+                if (!res.ok) {
+                    console.error('Failed to load trainings:', res.status);
+                    document.getElementById('trainingsTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const trainings = await res.json();
+                document.getElementById('trainingsTable').innerHTML = trainings.map(t => `
+                    <tr>
+                        <td>${t.title || '-'}</td>
+                        <td>${t.status || '-'}</td>
+                        <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('trainings', ${t.id})">Löschen</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">Keine Trainings</td></tr>';
+            } catch (err) {
+                console.error('Error loading trainings:', err);
+                document.getElementById('trainingsTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+            }
         }
 
         async function loadCustomers() {
-            const customers = await apiCall('/customers').then(r => r.json());
-            document.getElementById('customersTable').innerHTML = customers.map(c => `
-                <tr>
-                    <td>${c.name || '-'}</td>
-                    <td>${c.email || '-'}</td>
-                    <td>${c.company || '-'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteItem('customers', ${c.id})">Löschen</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="4">Keine Kunden</td></tr>';
+            try {
+                const res = await apiCall('/customers');
+                if (!res.ok) {
+                    console.error('Failed to load customers:', res.status);
+                    document.getElementById('customersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const customers = await res.json();
+                document.getElementById('customersTable').innerHTML = customers.map(c => `
+                    <tr>
+                        <td>${c.name || '-'}</td>
+                        <td>${c.email || '-'}</td>
+                        <td>${c.company || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('customers', ${c.id})">Löschen</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">Keine Kunden</td></tr>';
+            } catch (err) {
+                console.error('Error loading customers:', err);
+                document.getElementById('customersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+            }
         }
 
         async function loadTrainers() {
-            const trainers = await apiCall('/trainers').then(r => r.json());
-            document.getElementById('trainersTable').innerHTML = trainers.map(t => {
-                const specs = t.specializations || {selected: [], custom: []};
-                const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
-                return `
-                    <tr>
-                        <td>
-                            ${t.photo_path ? `<img src="${t.photo_path}" style="width:30px;height:30px;border-radius:50%;margin-right:0.5rem;vertical-align:middle;">` : ''}
-                            ${t.name || '-'}
-                        </td>
-                        <td>${t.email || '-'}</td>
-                        <td>${allSpecs.slice(0, 3).join(', ') || '-'}${allSpecs.length > 3 ? '...' : ''}</td>
-                        <td>
-                            ${t.linkedin_url ? `<a href="${t.linkedin_url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right:0.25rem;">LinkedIn</a>` : ''}
-                            <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('') || '<tr><td colspan="4">Keine Trainer</td></tr>';
+            try {
+                const res = await apiCall('/trainers');
+                if (!res.ok) {
+                    console.error('Failed to load trainers:', res.status);
+                    document.getElementById('trainersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const trainers = await res.json();
+                document.getElementById('trainersTable').innerHTML = trainers.map(t => {
+                    const specs = t.specializations || {selected: [], custom: []};
+                    const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
+                    return `
+                        <tr>
+                            <td>
+                                ${t.photo_path ? `<img src="${t.photo_path}" style="width:30px;height:30px;border-radius:50%;margin-right:0.5rem;vertical-align:middle;">` : ''}
+                                ${t.name || '-'}
+                            </td>
+                            <td>${t.email || '-'}</td>
+                            <td>${allSpecs.slice(0, 3).join(', ') || '-'}${allSpecs.length > 3 ? '...' : ''}</td>
+                            <td>
+                                ${t.linkedin_url ? `<a href="${t.linkedin_url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right:0.25rem;">LinkedIn</a>` : ''}
+                                <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="4">Keine Trainer</td></tr>';
+            } catch (err) {
+                console.error('Error loading trainers:', err);
+                document.getElementById('trainersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+            }
         }
 
         async function loadBrands() {
-            const brands = await apiCall('/brands').then(r => r.json());
-            document.getElementById('brandsTable').innerHTML = brands.map(b => `
-                <tr>
-                    <td>${b.name || '-'}</td>
-                    <td>${b.description || '-'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="3">Keine Marken</td></tr>';
+            try {
+                const res = await apiCall('/brands');
+                if (!res.ok) {
+                    console.error('Failed to load brands:', res.status);
+                    document.getElementById('brandsTable').innerHTML = '<tr><td colspan="3">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const brands = await res.json();
+                document.getElementById('brandsTable').innerHTML = brands.map(b => `
+                    <tr>
+                        <td>${b.name || '-'}</td>
+                        <td>${b.description || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="3">Keine Marken</td></tr>';
+            } catch (err) {
+                console.error('Error loading brands:', err);
+                document.getElementById('brandsTable').innerHTML = '<tr><td colspan="3">Fehler beim Laden</td></tr>';
+            }
         }
 
         async function deleteItem(type, id) {
