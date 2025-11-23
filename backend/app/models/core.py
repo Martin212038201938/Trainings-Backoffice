@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, date
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Table, Text, JSON
 from sqlalchemy.orm import relationship
 
 from ..database import Base
@@ -82,14 +82,24 @@ class Trainer(Base, TimestampMixin):
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False)
     phone = Column(String(100))
+    address = Column(Text)
+    vat_number = Column(String(100))
+    linkedin_url = Column(String(500))
+    photo_path = Column(String(500))
     default_day_rate = Column(Float)
     preferred_topics = Column(Text)
+    specializations = Column(JSON)  # {"selected": ["topic1", "topic2"], "custom": ["custom1"]}
     tags = Column(String(255))
     region = Column(String(100))
+    bio = Column(Text)
     notes = Column(Text)
 
     brands = relationship("Brand", secondary=trainer_brands, backref="trainers")
     trainings = relationship("Training", back_populates="trainer")
+
+    @property
+    def name(self):
+        return f"{self.first_name} {self.last_name}".strip()
 
 
 class TrainingCatalogEntry(Base, TimestampMixin):

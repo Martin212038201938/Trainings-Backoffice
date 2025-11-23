@@ -396,8 +396,14 @@ def create_brand():
     if not data:
         return jsonify({'error': 'Invalid JSON'}), 400
 
+    # Generate slug from name
+    import re
+    name = data.get('name', '')
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+
     brand = Brand(
-        name=data.get('name'),
+        name=name,
+        slug=slug,
         description=data.get('description')
     )
 
@@ -467,18 +473,26 @@ def delete_brand(brand_id):
 
 # ============== Customers Routes ==============
 
+def customer_to_dict(c):
+    """Convert customer model to dictionary."""
+    return {
+        "id": c.id,
+        "name": c.contact_name or c.company_name,
+        "company": c.company_name,
+        "contact_name": c.contact_name,
+        "email": c.contact_email,
+        "phone": c.contact_phone,
+        "billing_address": c.billing_address,
+        "notes": c.notes,
+        "status": c.status
+    }
+
+
 @app.route('/customers')
 @token_required
 def list_customers():
     customers = get_db().query(Customer).all()
-    return jsonify([{
-        "id": c.id,
-        "name": c.name,
-        "email": c.email,
-        "phone": c.phone,
-        "company": c.company,
-        "notes": c.notes
-    } for c in customers])
+    return jsonify([customer_to_dict(c) for c in customers])
 
 
 @app.route('/customers', methods=['POST'])
@@ -489,10 +503,10 @@ def create_customer():
         return jsonify({'error': 'Invalid JSON'}), 400
 
     customer = Customer(
-        name=data.get('name'),
-        email=data.get('email'),
-        phone=data.get('phone'),
-        company=data.get('company'),
+        company_name=data.get('company') or data.get('name', ''),
+        contact_name=data.get('name'),
+        contact_email=data.get('email'),
+        contact_phone=data.get('phone'),
         notes=data.get('notes')
     )
 
@@ -501,14 +515,7 @@ def create_customer():
     db.commit()
     db.refresh(customer)
 
-    return jsonify({
-        "id": customer.id,
-        "name": customer.name,
-        "email": customer.email,
-        "phone": customer.phone,
-        "company": customer.company,
-        "notes": customer.notes
-    }), 201
+    return jsonify(customer_to_dict(customer)), 201
 
 
 @app.route('/customers/<int:customer_id>')
@@ -518,14 +525,7 @@ def get_customer(customer_id):
     if not customer:
         return jsonify({'error': 'Customer not found'}), 404
 
-    return jsonify({
-        "id": customer.id,
-        "name": customer.name,
-        "email": customer.email,
-        "phone": customer.phone,
-        "company": customer.company,
-        "notes": customer.notes
-    })
+    return jsonify(customer_to_dict(customer))
 
 
 @app.route('/customers/<int:customer_id>', methods=['PUT'])
@@ -537,21 +537,24 @@ def update_customer(customer_id):
         return jsonify({'error': 'Customer not found'}), 404
 
     data = request.get_json()
-    for key in ['name', 'email', 'phone', 'company', 'notes']:
-        if key in data:
-            setattr(customer, key, data[key])
+
+    # Map frontend field names to model field names
+    field_mapping = {
+        'name': 'contact_name',
+        'company': 'company_name',
+        'email': 'contact_email',
+        'phone': 'contact_phone',
+        'notes': 'notes'
+    }
+
+    for frontend_key, model_key in field_mapping.items():
+        if frontend_key in data:
+            setattr(customer, model_key, data[frontend_key])
 
     db.commit()
     db.refresh(customer)
 
-    return jsonify({
-        "id": customer.id,
-        "name": customer.name,
-        "email": customer.email,
-        "phone": customer.phone,
-        "company": customer.company,
-        "notes": customer.notes
-    })
+    return jsonify(customer_to_dict(customer))
 
 
 @app.route('/customers/<int:customer_id>', methods=['DELETE'])
@@ -570,18 +573,32 @@ def delete_customer(customer_id):
 
 # ============== Trainers Routes ==============
 
+def trainer_to_dict(t):
+    """Convert trainer model to dictionary."""
+    return {
+        "id": t.id,
+        "first_name": t.first_name,
+        "last_name": t.last_name,
+        "name": t.name,
+        "email": t.email,
+        "phone": t.phone,
+        "address": t.address,
+        "vat_number": t.vat_number,
+        "linkedin_url": t.linkedin_url,
+        "photo_path": t.photo_path,
+        "specializations": t.specializations or {"selected": [], "custom": []},
+        "bio": t.bio,
+        "notes": t.notes,
+        "region": t.region,
+        "default_day_rate": t.default_day_rate
+    }
+
+
 @app.route('/trainers')
 @token_required
 def list_trainers():
     trainers = get_db().query(Trainer).all()
-    return jsonify([{
-        "id": t.id,
-        "name": t.name,
-        "email": t.email,
-        "phone": t.phone,
-        "specialization": t.specialization,
-        "bio": t.bio
-    } for t in trainers])
+    return jsonify([trainer_to_dict(t) for t in trainers])
 
 
 @app.route('/trainers', methods=['POST'])
@@ -591,12 +608,27 @@ def create_trainer():
     if not data:
         return jsonify({'error': 'Invalid JSON'}), 400
 
+    # Handle name split if only 'name' is provided
+    first_name = data.get('first_name', '')
+    last_name = data.get('last_name', '')
+    if not first_name and not last_name and data.get('name'):
+        parts = data.get('name', '').split(' ', 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ''
+
     trainer = Trainer(
-        name=data.get('name'),
-        email=data.get('email'),
+        first_name=first_name,
+        last_name=last_name,
+        email=data.get('email', ''),
         phone=data.get('phone'),
-        specialization=data.get('specialization'),
-        bio=data.get('bio')
+        address=data.get('address'),
+        vat_number=data.get('vat_number'),
+        linkedin_url=data.get('linkedin_url'),
+        specializations=data.get('specializations'),
+        bio=data.get('bio'),
+        notes=data.get('notes'),
+        region=data.get('region'),
+        default_day_rate=data.get('default_day_rate')
     )
 
     db = get_db()
@@ -604,14 +636,7 @@ def create_trainer():
     db.commit()
     db.refresh(trainer)
 
-    return jsonify({
-        "id": trainer.id,
-        "name": trainer.name,
-        "email": trainer.email,
-        "phone": trainer.phone,
-        "specialization": trainer.specialization,
-        "bio": trainer.bio
-    }), 201
+    return jsonify(trainer_to_dict(trainer)), 201
 
 
 @app.route('/trainers/<int:trainer_id>')
@@ -621,14 +646,7 @@ def get_trainer(trainer_id):
     if not trainer:
         return jsonify({'error': 'Trainer not found'}), 404
 
-    return jsonify({
-        "id": trainer.id,
-        "name": trainer.name,
-        "email": trainer.email,
-        "phone": trainer.phone,
-        "specialization": trainer.specialization,
-        "bio": trainer.bio
-    })
+    return jsonify(trainer_to_dict(trainer))
 
 
 @app.route('/trainers/<int:trainer_id>', methods=['PUT'])
@@ -640,21 +658,57 @@ def update_trainer(trainer_id):
         return jsonify({'error': 'Trainer not found'}), 404
 
     data = request.get_json()
-    for key in ['name', 'email', 'phone', 'specialization', 'bio']:
+
+    # Handle name split if only 'name' is provided
+    if 'name' in data and 'first_name' not in data:
+        parts = data.get('name', '').split(' ', 1)
+        data['first_name'] = parts[0]
+        data['last_name'] = parts[1] if len(parts) > 1 else ''
+
+    for key in ['first_name', 'last_name', 'email', 'phone', 'address', 'vat_number',
+                'linkedin_url', 'specializations', 'bio', 'notes', 'region', 'default_day_rate']:
         if key in data:
             setattr(trainer, key, data[key])
 
     db.commit()
     db.refresh(trainer)
 
-    return jsonify({
-        "id": trainer.id,
-        "name": trainer.name,
-        "email": trainer.email,
-        "phone": trainer.phone,
-        "specialization": trainer.specialization,
-        "bio": trainer.bio
-    })
+    return jsonify(trainer_to_dict(trainer))
+
+
+@app.route('/trainers/<int:trainer_id>/photo', methods=['POST'])
+@token_required
+def upload_trainer_photo(trainer_id):
+    db = get_db()
+    trainer = db.query(Trainer).filter(Trainer.id == trainer_id).first()
+    if not trainer:
+        return jsonify({'error': 'Trainer not found'}), 404
+
+    if 'photo' not in request.files:
+        return jsonify({'error': 'No photo file provided'}), 400
+
+    photo = request.files['photo']
+    if photo.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    # Save photo
+    import uuid
+    from werkzeug.utils import secure_filename
+
+    filename = secure_filename(photo.filename)
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
+    new_filename = f"trainer_{trainer_id}_{uuid.uuid4().hex[:8]}.{ext}"
+
+    upload_dir = APP_DIR / 'static' / 'uploads' / 'trainers'
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    photo_path = upload_dir / new_filename
+    photo.save(str(photo_path))
+
+    trainer.photo_path = f"/static/uploads/trainers/{new_filename}"
+    db.commit()
+
+    return jsonify({"photo_path": trainer.photo_path})
 
 
 @app.route('/trainers/<int:trainer_id>', methods=['DELETE'])
