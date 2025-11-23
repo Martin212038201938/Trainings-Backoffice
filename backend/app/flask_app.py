@@ -137,9 +137,11 @@ def api_root():
     return jsonify({
         "app": settings.app_name,
         "status": "running",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "docs": "/api-info",
-        "health": "/health"
+        "health": "/health",
+        "template_dir": str(TEMPLATE_DIR),
+        "template_exists": (TEMPLATE_DIR / 'index.html').exists()
     })
 
 
