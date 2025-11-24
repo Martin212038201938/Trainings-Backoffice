@@ -893,8 +893,18 @@ def trainer_dashboard():
 
     # Find trainer linked to this user
     trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+
+    # If not found by user_id, try to find by email and auto-link
     if not trainer:
-        return jsonify({'error': 'No trainer profile linked to this account'}), 404
+        trainer = db.query(Trainer).filter(Trainer.email == g.current_user.email).first()
+        if trainer:
+            # Auto-link trainer to user
+            trainer.user_id = g.current_user.id
+            db.commit()
+            logger.info(f"Auto-linked trainer {trainer.id} to user {g.current_user.id}")
+
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked to this account. Please contact admin.'}), 404
 
     # Get trainer's trainings
     my_trainings = db.query(Training).filter(Training.trainer_id == trainer.id).all()
@@ -946,8 +956,14 @@ def get_open_trainings():
 
     db = get_db()
 
-    # Find trainer linked to this user
+    # Find trainer linked to this user (with auto-link by email)
     trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        trainer = db.query(Trainer).filter(Trainer.email == g.current_user.email).first()
+        if trainer:
+            trainer.user_id = g.current_user.id
+            db.commit()
+
     if not trainer:
         return jsonify({'error': 'No trainer profile linked'}), 404
 
