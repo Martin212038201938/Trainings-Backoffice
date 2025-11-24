@@ -244,7 +244,7 @@
                         <div class="card-body">
                             <table>
                                 <thead>
-                                    <tr><th>Benutzername</th><th>Email</th><th>Rolle</th><th>Status</th><th>Aktionen</th></tr>
+                                    <tr><th>Benutzername</th><th>Email</th><th>Rolle</th><th>Status</th><th>Trainer-Profil</th><th>Aktionen</th></tr>
                                 </thead>
                                 <tbody id="usersTable"></tbody>
                             </table>
@@ -380,6 +380,16 @@
                     }
                     if (currentUser.role === 'trainer') {
                         document.getElementById('trainerNav').style.display = 'block';
+                        // Hide sections trainers shouldn't see
+                        document.querySelector('[data-section="dashboard"]').style.display = 'none';
+                        document.querySelector('[data-section="customers"]').style.display = 'none';
+                        document.querySelector('[data-section="trainers"]').style.display = 'none';
+                        // Trainers can view brands but not create
+                        const brandsLink = document.querySelector('[data-section="brands"]');
+                        if (brandsLink) brandsLink.textContent = 'Marken (Ansicht)';
+                        // Start on trainer dashboard instead
+                        showSection('trainer-dashboard');
+                        return;
                     }
 
                     loadDashboard();
@@ -531,11 +541,20 @@
             }
         }
 
+        let allTrainers = []; // Cache trainers for linking
+
         async function loadUsers() {
             if (currentUser.role !== 'admin') {
-                document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">Keine Berechtigung</td></tr>';
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="6">Keine Berechtigung</td></tr>';
                 return;
             }
+
+            // Load trainers for linking dropdown
+            const trainersRes = await apiCall('/trainers');
+            if (trainersRes.ok) {
+                allTrainers = await trainersRes.json();
+            }
+
             const users = await apiCall('/auth/users').then(r => r.json());
             document.getElementById('usersTable').innerHTML = users.map(u => `
                 <tr>
@@ -544,10 +563,67 @@
                     <td><span class="badge" style="background: ${u.role === 'admin' ? '#dc3545' : u.role === 'trainer' ? '#28a745' : '#007bff'}; color: white; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem;">${u.role}</span></td>
                     <td>${u.is_active ? '<span style="color: #28a745;">Aktiv</span>' : '<span style="color: #dc3545;">Inaktiv</span>'}</td>
                     <td>
+                        ${u.role === 'trainer' ? `
+                            ${u.trainer_id
+                                ? `<span style="color: #28a745;">${u.trainer_name}</span>
+                                   <button class="btn btn-sm btn-secondary" onclick="showLinkTrainerModal(${u.id}, ${u.trainer_id})" style="margin-left:0.5rem;">Ändern</button>`
+                                : `<button class="btn btn-sm btn-success" onclick="showLinkTrainerModal(${u.id}, null)">Verknüpfen</button>`
+                            }
+                        ` : '-'}
+                    </td>
+                    <td>
                         ${u.id !== currentUser.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Löschen</button>` : '<em>Aktueller User</em>'}
                     </td>
                 </tr>
-            `).join('') || '<tr><td colspan="5">Keine Benutzer</td></tr>';
+            `).join('') || '<tr><td colspan="6">Keine Benutzer</td></tr>';
+        }
+
+        function showLinkTrainerModal(userId, currentTrainerId) {
+            const availableTrainers = allTrainers.filter(t => !t.user_id || t.id === currentTrainerId);
+
+            const options = availableTrainers.map(t =>
+                `<option value="${t.id}" ${t.id === currentTrainerId ? 'selected' : ''}>${t.name} (${t.email})</option>`
+            ).join('');
+
+            const html = `
+                <div class="modal-header">
+                    <h3>Trainer verknüpfen</h3>
+                    <span class="close" onclick="closeModal()">&times;</span>
+                </div>
+                <form onsubmit="linkUserToTrainer(event, ${userId})">
+                    <div class="form-group">
+                        <label>Trainer auswählen</label>
+                        <select name="trainer_id" style="width:100%;padding:0.5rem;">
+                            <option value="">-- Keine Verknüpfung --</option>
+                            ${options}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Speichern</button>
+                </form>
+            `;
+
+            document.getElementById('createModal').querySelector('.modal-content').innerHTML = html;
+            document.getElementById('createModal').style.display = 'flex';
+        }
+
+        async function linkUserToTrainer(event, userId) {
+            event.preventDefault();
+            const form = event.target;
+            const trainerId = form.trainer_id.value || null;
+
+            const res = await apiCall(`/auth/users/${userId}/link-trainer`, {
+                method: 'POST',
+                body: JSON.stringify({ trainer_id: trainerId ? parseInt(trainerId) : null })
+            });
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                alert(error.error || 'Fehler beim Verknüpfen');
+                return;
+            }
+
+            closeModal();
+            loadUsers();
         }
 
         async function deleteUser(id) {
@@ -692,12 +768,19 @@
                 }
                 const brands = await res.json();
                 console.log('Loaded brands:', brands);
+
+                // Hide create button for trainers
+                const createBrandBtn = document.querySelector('#section-brands .btn-success');
+                if (createBrandBtn && currentUser && currentUser.role === 'trainer') {
+                    createBrandBtn.style.display = 'none';
+                }
+
                 document.getElementById('brandsTable').innerHTML = brands.map(b => `
                     <tr>
                         <td>${b.name || '-'}</td>
                         <td>${b.description || '-'}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>
+                            ${currentUser && currentUser.role !== 'trainer' ? `<button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>` : ''}
                         </td>
                     </tr>
                 `).join('') || '<tr><td colspan="3">Keine Marken</td></tr>';
