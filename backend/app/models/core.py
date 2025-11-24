@@ -151,17 +151,21 @@ class Trainer(Base, TimestampMixin):
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False)
     phone = Column(String(100))
-    address = Column(Text)
+    # Address fields (separated)
+    street = Column(String(255))
+    house_number = Column(String(20))
+    postal_code = Column(String(20))
+    city = Column(String(100))
     vat_number = Column(String(100))
+    bank_account = Column(String(100))  # Kontonummer
     linkedin_url = Column(String(500))
     website = Column(String(500))
     photo_path = Column(String(500))
-    default_day_rate = Column(Float)
     preferred_topics = Column(Text)
     specializations = Column(JSON)  # {"selected": ["topic1", "topic2"], "custom": ["custom1"]}
     tags = Column(String(255))
     region = Column(String(100))
-    bio = Column(Text)
+    additional_info = Column(Text)  # Weitere Informationen (formerly bio)
     notes = Column(Text)
 
     user = relationship("User", backref="trainer")
@@ -349,16 +353,23 @@ class TrainerRegistration(Base, TimestampMixin):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     phone = Column(String(100))
-    address = Column(Text)
+    # Address fields (separated)
+    street = Column(String(255))
+    house_number = Column(String(20))
+    postal_code = Column(String(20))
+    city = Column(String(100))
 
     # Professional info
     vat_number = Column(String(100))
+    bank_account = Column(String(100))  # Kontonummer
     linkedin_url = Column(String(500))
     website = Column(String(500))
-    default_day_rate = Column(Float)
     region = Column(String(100))
-    bio = Column(Text)
+    additional_info = Column(Text)  # Weitere Informationen (formerly bio)
     specializations = Column(Text)  # Comma-separated or JSON
+
+    # Proposed trainings (JSON array, up to 10 trainings)
+    proposed_trainings = Column(Text)  # JSON: [{title, description, duration, duration_unit, materials_available, target_audience, price}]
 
     # Photo
     photo_url = Column(String(500))
