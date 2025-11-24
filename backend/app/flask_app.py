@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User
+from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location
 from .core.security import create_access_token, get_password_hash, verify_password
 
 # Create tables
@@ -978,6 +978,147 @@ def delete_training(training_id):
         return jsonify({'error': 'Training not found'}), 404
 
     db.delete(training)
+    db.commit()
+
+    return jsonify({"status": "deleted"})
+
+
+# ============== Locations Routes ==============
+
+def location_to_dict(loc):
+    """Convert location model to dictionary."""
+    return {
+        "id": loc.id,
+        "name": loc.name,
+        # Address
+        "city": loc.city,
+        "street": loc.street,
+        "street_number": loc.street_number,
+        "postal_code": loc.postal_code,
+        # Billing address
+        "billing_street": loc.billing_street,
+        "billing_street_number": loc.billing_street_number,
+        "billing_postal_code": loc.billing_postal_code,
+        "billing_city": loc.billing_city,
+        "billing_vat": loc.billing_vat,
+        # Contact
+        "contact_first_name": loc.contact_first_name,
+        "contact_last_name": loc.contact_last_name,
+        "contact_email": loc.contact_email,
+        "contact_phone": loc.contact_phone,
+        "contact_notes": loc.contact_notes,
+        # Details
+        "description": loc.description,
+        "max_participants": loc.max_participants,
+        "features": loc.features,
+        "website_link": loc.website_link,
+        "catering_available": loc.catering_available,
+        "rental_cost": loc.rental_cost,
+        "rental_cost_type": loc.rental_cost_type,
+        "parking": loc.parking,
+        "directions": loc.directions,
+        "participant_info": loc.participant_info
+    }
+
+
+@app.route('/locations')
+@token_required
+def list_locations():
+    locations = get_db().query(Location).all()
+    return jsonify([location_to_dict(loc) for loc in locations])
+
+
+@app.route('/locations', methods=['POST'])
+@token_required
+def create_location():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON'}), 400
+
+    try:
+        location = Location(
+            name=data.get('name', ''),
+            city=data.get('city'),
+            street=data.get('street'),
+            street_number=data.get('street_number'),
+            postal_code=data.get('postal_code'),
+            billing_street=data.get('billing_street'),
+            billing_street_number=data.get('billing_street_number'),
+            billing_postal_code=data.get('billing_postal_code'),
+            billing_city=data.get('billing_city'),
+            billing_vat=data.get('billing_vat'),
+            contact_first_name=data.get('contact_first_name'),
+            contact_last_name=data.get('contact_last_name'),
+            contact_email=data.get('contact_email'),
+            contact_phone=data.get('contact_phone'),
+            contact_notes=data.get('contact_notes'),
+            description=data.get('description'),
+            max_participants=data.get('max_participants'),
+            features=data.get('features'),
+            website_link=data.get('website_link'),
+            catering_available=data.get('catering_available', 'no'),
+            rental_cost=data.get('rental_cost'),
+            rental_cost_type=data.get('rental_cost_type', 'day'),
+            parking=data.get('parking'),
+            directions=data.get('directions'),
+            participant_info=data.get('participant_info')
+        )
+
+        db = get_db()
+        db.add(location)
+        db.commit()
+        db.refresh(location)
+
+        return jsonify(location_to_dict(location)), 201
+    except Exception as e:
+        logger.error(f"Error creating location: {e}")
+        return jsonify({'error': f'Fehler beim Erstellen: {str(e)}'}), 500
+
+
+@app.route('/locations/<int:location_id>')
+@token_required
+def get_location(location_id):
+    location = get_db().query(Location).filter(Location.id == location_id).first()
+    if not location:
+        return jsonify({'error': 'Location not found'}), 404
+
+    return jsonify(location_to_dict(location))
+
+
+@app.route('/locations/<int:location_id>', methods=['PUT'])
+@token_required
+def update_location(location_id):
+    db = get_db()
+    location = db.query(Location).filter(Location.id == location_id).first()
+    if not location:
+        return jsonify({'error': 'Location not found'}), 404
+
+    data = request.get_json()
+
+    for key in ['name', 'city', 'street', 'street_number', 'postal_code',
+                'billing_street', 'billing_street_number', 'billing_postal_code',
+                'billing_city', 'billing_vat', 'contact_first_name', 'contact_last_name',
+                'contact_email', 'contact_phone', 'contact_notes', 'description',
+                'max_participants', 'features', 'website_link', 'catering_available',
+                'rental_cost', 'rental_cost_type', 'parking', 'directions', 'participant_info']:
+        if key in data:
+            setattr(location, key, data[key])
+
+    db.commit()
+    db.refresh(location)
+
+    return jsonify(location_to_dict(location))
+
+
+@app.route('/locations/<int:location_id>', methods=['DELETE'])
+@token_required
+def delete_location(location_id):
+    db = get_db()
+    location = db.query(Location).filter(Location.id == location_id).first()
+    if not location:
+        return jsonify({'error': 'Location not found'}), 404
+
+    db.delete(location)
     db.commit()
 
     return jsonify({"status": "deleted"})

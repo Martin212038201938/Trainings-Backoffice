@@ -235,3 +235,47 @@ class TrainerApplication(Base, TimestampMixin):
 
     training = relationship("Training", backref="applications")
     trainer = relationship("Trainer", backref="applications")
+
+
+CATERING_OPTIONS = ("yes", "no", "external")
+RENTAL_COST_TYPES = ("day", "hour", "total")
+
+
+class Location(Base, TimestampMixin):
+    """Training locations/venues."""
+    __tablename__ = "locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+
+    # Address
+    city = Column(String(100))
+    street = Column(String(255))
+    street_number = Column(String(20))
+    postal_code = Column(String(20))
+
+    # Billing address
+    billing_street = Column(String(255))
+    billing_street_number = Column(String(20))
+    billing_postal_code = Column(String(20))
+    billing_city = Column(String(100))
+    billing_vat = Column(String(100))
+
+    # Contact person
+    contact_first_name = Column(String(100))
+    contact_last_name = Column(String(100))
+    contact_email = Column(String(255))
+    contact_phone = Column(String(100))
+    contact_notes = Column(Text)  # Hinweise
+
+    # Location details
+    description = Column(Text)  # Location Beschreibung
+    max_participants = Column(Integer)
+    features = Column(Text)  # Features (Freitext)
+    website_link = Column(String(500))  # Link zur Location
+    catering_available = Column(String(20), default="no")  # yes/no/external
+    rental_cost = Column(Float)  # Mietkosten
+    rental_cost_type = Column(String(20), default="day")  # day/hour/total
+    parking = Column(Text)  # Parken (Freitext)
+    directions = Column(Text)  # Anreise (Freitext)
+    participant_info = Column(Text)  # Informationen für TN (Freitext)
