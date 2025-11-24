@@ -34,6 +34,16 @@ from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, Tr
 from .models.core import ActivityLog
 from .models.core import validate_status_transition, validate_training_type, validate_training_format, TRAINING_STATUSES
 from .core.security import create_access_token, get_password_hash, verify_password
+from .services.email import (
+    send_welcome_email,
+    send_trainer_application_received,
+    send_trainer_application_accepted,
+    send_trainer_application_rejected,
+    send_training_status_update,
+    send_new_application_admin_notification,
+    send_trainer_assigned_notification,
+    send_training_reminder
+)
 
 # Create tables
 try:
@@ -360,6 +370,9 @@ def register():
 
     db.commit()
     db.refresh(user)
+
+    # Send welcome email
+    send_welcome_email(user.email, user.username)
 
     response = {
         "id": user.id,
@@ -1111,6 +1124,10 @@ def update_training(training_id):
     if 'end_date' in data:
         training.end_date = dt.fromisoformat(data['end_date']).date() if data['end_date'] else None
 
+    # Track trainer assignment change
+    old_trainer_id = training.trainer_id
+    new_trainer_id = data.get('trainer_id', old_trainer_id)
+
     # Create activity log for status change
     if old_status != new_status:
         log = ActivityLog(
@@ -1122,6 +1139,34 @@ def update_training(training_id):
 
     db.commit()
     db.refresh(training)
+
+    # Send email notifications for status change
+    if old_status != new_status:
+        # Notify trainer if assigned
+        if training.trainer and training.trainer.email:
+            trainer = training.trainer
+            send_training_status_update(
+                trainer.email,
+                f"{trainer.first_name} {trainer.last_name}",
+                training.title or f"Training {training_id}",
+                old_status,
+                new_status,
+                training_id
+            )
+
+    # Send notification if trainer was newly assigned
+    if new_trainer_id and new_trainer_id != old_trainer_id:
+        new_trainer = db.query(Trainer).filter(Trainer.id == new_trainer_id).first()
+        if new_trainer and new_trainer.email:
+            customer_name = training.customer.company_name if training.customer else "Unbekannt"
+            training_date = training.start_date.strftime("%d.%m.%Y") if training.start_date else "Noch nicht festgelegt"
+            send_trainer_assigned_notification(
+                new_trainer.email,
+                f"{new_trainer.first_name} {new_trainer.last_name}",
+                training.title or f"Training {training_id}",
+                training_date,
+                customer_name
+            )
 
     return jsonify(training_to_dict(training))
 
@@ -2073,6 +2118,20 @@ Application ID: {application.id}""",
 
     db.commit()
 
+    # Send confirmation email to trainer
+    trainer_name = f"{application.first_name} {application.last_name}"
+    send_trainer_application_received(application.email, trainer_name)
+
+    # Send notification email to admins
+    for admin in admin_users:
+        if admin.email:
+            send_new_application_admin_notification(
+                admin.email,
+                trainer_name,
+                application.email,
+                application.id
+            )
+
     return jsonify({"status": "success", "message": "Bewerbung erfolgreich eingereicht", "id": application.id}), 201
 
 
@@ -2164,6 +2223,10 @@ def approve_trainer_application(app_id):
 
     db.commit()
 
+    # Send acceptance email to trainer
+    trainer_name = f"{application.first_name} {application.last_name}"
+    send_trainer_application_accepted(application.email, trainer_name)
+
     return jsonify({
         "status": "success",
         "message": "Trainer erfolgreich angelegt",
@@ -2187,13 +2250,78 @@ def reject_trainer_application(app_id):
     if application.status != 'pending':
         return jsonify({"error": "Application already processed"}), 400
 
+    # Get optional rejection reason
+    data = request.get_json() or {}
+    reason = data.get('reason')
+
     application.status = 'rejected'
     application.reviewed_at = datetime.utcnow()
     application.reviewed_by = g.current_user.id
 
     db.commit()
 
+    # Send rejection email to trainer
+    trainer_name = f"{application.first_name} {application.last_name}"
+    send_trainer_application_rejected(application.email, trainer_name, reason)
+
     return jsonify({"status": "success", "message": "Bewerbung abgelehnt"})
+
+
+# ============== Scheduled Tasks ==============
+
+@app.route('/cron/send-training-reminders', methods=['POST'])
+def send_training_reminders():
+    """
+    Send reminder emails for trainings happening tomorrow.
+    This endpoint should be called by a cron job daily at 12:00.
+
+    Security: Uses a simple API key for authentication.
+    """
+    # Simple API key authentication for cron jobs
+    api_key = request.headers.get('X-Cron-Key')
+    expected_key = os.environ.get('CRON_API_KEY', 'change-this-key')
+
+    if api_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    db = get_db()
+    tomorrow = (datetime.utcnow() + timedelta(days=1)).date()
+
+    # Find all trainings starting tomorrow with assigned trainers
+    trainings = db.query(Training).filter(
+        Training.start_date == tomorrow,
+        Training.trainer_id.isnot(None),
+        Training.status.in_(['trainer_confirmed', 'planning'])
+    ).all()
+
+    sent_count = 0
+    for training in trainings:
+        trainer = training.trainer
+        if trainer and trainer.email:
+            customer_name = training.customer.company_name if training.customer else "Unbekannt"
+            location = training.location or training.location_details or "Siehe Backoffice"
+            training_date = training.start_date.strftime("%d.%m.%Y")
+            training_time = "Siehe Backoffice"  # Could be enhanced with actual time field
+
+            success = send_training_reminder(
+                trainer.email,
+                f"{trainer.first_name} {trainer.last_name}",
+                training.title or f"Training {training.id}",
+                training_date,
+                training_time,
+                location,
+                customer_name
+            )
+
+            if success:
+                sent_count += 1
+                logger.info(f"Sent reminder for training {training.id} to {trainer.email}")
+
+    return jsonify({
+        "status": "success",
+        "trainings_found": len(trainings),
+        "reminders_sent": sent_count
+    })
 
 
 # WSGI application

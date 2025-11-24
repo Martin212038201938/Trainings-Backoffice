@@ -23,5 +23,15 @@ class Settings(BaseSettings):
     # CORS settings
     cors_origins: list[str] = ["https://bo.yellow-plane.com", "http://localhost:3000"]
 
+    # Email settings
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    smtp_from_email: str = ""
+    smtp_from_name: str = "Yellow-Boat Academy"
+    email_enabled: bool = False  # Set to True when SMTP is configured
+
 
 settings = Settings()
