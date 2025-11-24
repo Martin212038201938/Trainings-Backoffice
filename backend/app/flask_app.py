@@ -11,6 +11,14 @@ from pathlib import Path
 from flask import Flask, jsonify, request, g, render_template
 from flask_cors import CORS
 from sqlalchemy.orm import Session
+from collections import defaultdict
+import time
+
+# Rate limiting storage
+login_attempts = defaultdict(list)  # IP -> list of timestamps
+MAX_LOGIN_ATTEMPTS = 5  # Max attempts per window
+LOGIN_WINDOW_SECONDS = 300  # 5 minute window
+LOCKOUT_SECONDS = 900  # 15 minute lockout after max attempts
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +31,7 @@ logger = logging.getLogger(__name__)
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message, TrainerRegistration
+from .models.core import validate_status_transition, validate_training_type, validate_training_format, TRAINING_STATUSES
 from .core.security import create_access_token, get_password_hash, verify_password
 
 # Create tables
@@ -245,6 +254,25 @@ def api_info():
 
 @app.route('/auth/login', methods=['POST'])
 def login():
+    # Rate limiting check
+    client_ip = request.remote_addr or 'unknown'
+    current_time = time.time()
+
+    # Clean up old attempts
+    login_attempts[client_ip] = [
+        t for t in login_attempts[client_ip]
+        if current_time - t < LOCKOUT_SECONDS
+    ]
+
+    # Check if locked out
+    recent_attempts = [t for t in login_attempts[client_ip] if current_time - t < LOGIN_WINDOW_SECONDS]
+    if len(recent_attempts) >= MAX_LOGIN_ATTEMPTS:
+        remaining_lockout = int(LOCKOUT_SECONDS - (current_time - login_attempts[client_ip][0]))
+        logger.warning(f"Rate limit exceeded for IP {client_ip}")
+        return jsonify({
+            'error': f'Zu viele Anmeldeversuche. Bitte warten Sie {remaining_lockout // 60} Minuten.'
+        }), 429
+
     if request.content_type == 'application/x-www-form-urlencoded':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -259,10 +287,19 @@ def login():
     user = get_db().query(User).filter(User.username == username).first()
 
     if not user or not verify_password(password, user.hashed_password):
-        return jsonify({'error': 'Incorrect username or password'}), 401
+        # Record failed attempt
+        login_attempts[client_ip].append(current_time)
+        attempts_left = MAX_LOGIN_ATTEMPTS - len([t for t in login_attempts[client_ip] if current_time - t < LOGIN_WINDOW_SECONDS])
+        if attempts_left > 0:
+            return jsonify({'error': f'Incorrect username or password. {attempts_left} Versuche übrig.'}), 401
+        else:
+            return jsonify({'error': 'Incorrect username or password. Account gesperrt.'}), 401
 
     if not user.is_active:
         return jsonify({'error': 'User account is inactive'}), 403
+
+    # Clear failed attempts on successful login
+    login_attempts[client_ip] = []
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
@@ -854,6 +891,23 @@ def create_training():
 
     from datetime import datetime as dt
 
+    # Validate status
+    status = data.get('status', 'lead')
+    if status not in TRAINING_STATUSES:
+        return jsonify({'error': f"Ungültiger Status: {status}. Erlaubt: {', '.join(TRAINING_STATUSES)}"}), 400
+
+    # Validate training_type
+    if data.get('training_type'):
+        is_valid, error_msg = validate_training_type(data['training_type'])
+        if not is_valid:
+            return jsonify({'error': error_msg}), 400
+
+    # Validate training_format
+    if data.get('training_format'):
+        is_valid, error_msg = validate_training_format(data['training_format'])
+        if not is_valid:
+            return jsonify({'error': error_msg}), 400
+
     try:
         training = Training(
             title=data.get('title'),
@@ -914,6 +968,24 @@ def update_training(training_id):
 
     data = request.get_json()
     from datetime import datetime as dt
+
+    # Validate status transition if status is being changed
+    if 'status' in data and data['status'] != training.status:
+        is_valid, error_msg = validate_status_transition(training.status, data['status'])
+        if not is_valid:
+            return jsonify({'error': error_msg}), 400
+
+    # Validate training_type if provided
+    if 'training_type' in data:
+        is_valid, error_msg = validate_training_type(data['training_type'])
+        if not is_valid:
+            return jsonify({'error': error_msg}), 400
+
+    # Validate training_format if provided
+    if 'training_format' in data:
+        is_valid, error_msg = validate_training_format(data['training_format'])
+        if not is_valid:
+            return jsonify({'error': error_msg}), 400
 
     # Update simple fields
     for key in ['title', 'location', 'status', 'customer_id', 'trainer_id', 'brand_id',
@@ -1400,6 +1472,117 @@ def withdraw_application(application_id):
     db.commit()
 
     return jsonify({"status": "withdrawn"})
+
+
+# ============== Admin Training Applications Routes ==============
+
+@app.route('/admin/training-applications')
+@token_required
+def list_training_applications():
+    """List all training applications (admin/backoffice only)."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({'error': 'Admin access required'}), 403
+
+    db = get_db()
+    from .models import TrainerApplication
+
+    applications = db.query(TrainerApplication).order_by(
+        TrainerApplication.created_at.desc()
+    ).all()
+
+    result = []
+    for app in applications:
+        trainer = db.query(Trainer).filter(Trainer.id == app.trainer_id).first()
+        training = db.query(Training).filter(Training.id == app.training_id).first()
+        result.append({
+            "id": app.id,
+            "trainer_id": app.trainer_id,
+            "trainer_name": trainer.name if trainer else "Unbekannt",
+            "trainer_email": trainer.email if trainer else None,
+            "training_id": app.training_id,
+            "training_title": training.title if training else "Unbekannt",
+            "proposed_rate": app.proposed_rate,
+            "message": app.message,
+            "status": app.status,
+            "created_at": app.created_at.isoformat() if app.created_at else None
+        })
+
+    return jsonify(result)
+
+
+@app.route('/admin/training-applications/<int:app_id>/accept', methods=['POST'])
+@token_required
+def accept_training_application(app_id):
+    """Accept a training application and assign trainer to training."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({'error': 'Admin access required'}), 403
+
+    db = get_db()
+    from .models import TrainerApplication
+
+    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    if not application:
+        return jsonify({'error': 'Application not found'}), 404
+
+    if application.status != 'pending':
+        return jsonify({'error': 'Application already processed'}), 400
+
+    # Get the training and assign the trainer
+    training = db.query(Training).filter(Training.id == application.training_id).first()
+    if not training:
+        return jsonify({'error': 'Training not found'}), 404
+
+    # Check if training already has a trainer
+    if training.trainer_id:
+        return jsonify({'error': 'Training already has a trainer assigned'}), 400
+
+    # Assign trainer to training
+    training.trainer_id = application.trainer_id
+
+    # Update application status
+    application.status = 'accepted'
+
+    # Reject all other pending applications for this training
+    other_apps = db.query(TrainerApplication).filter(
+        TrainerApplication.training_id == application.training_id,
+        TrainerApplication.id != app_id,
+        TrainerApplication.status == 'pending'
+    ).all()
+    for other_app in other_apps:
+        other_app.status = 'rejected'
+
+    db.commit()
+
+    trainer = db.query(Trainer).filter(Trainer.id == application.trainer_id).first()
+    return jsonify({
+        "status": "success",
+        "message": f"Trainer {trainer.name if trainer else 'Unbekannt'} wurde dem Training zugewiesen",
+        "trainer_id": application.trainer_id,
+        "training_id": application.training_id
+    })
+
+
+@app.route('/admin/training-applications/<int:app_id>/reject', methods=['POST'])
+@token_required
+def reject_training_application(app_id):
+    """Reject a training application."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({'error': 'Admin access required'}), 403
+
+    db = get_db()
+    from .models import TrainerApplication
+
+    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    if not application:
+        return jsonify({'error': 'Application not found'}), 404
+
+    if application.status != 'pending':
+        return jsonify({'error': 'Application already processed'}), 400
+
+    application.status = 'rejected'
+    db.commit()
+
+    return jsonify({"status": "success", "message": "Bewerbung abgelehnt"})
 
 
 # ============== Messages Routes ==============
