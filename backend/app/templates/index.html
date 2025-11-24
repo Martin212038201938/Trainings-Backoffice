@@ -175,16 +175,34 @@
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Login-Daten</legend>
                     <div class="form-group">
-                        <label>E-Mail-Adresse (wird auch als Benutzername verwendet)</label>
+                        <label>E-Mail-Adresse * (wird auch als Benutzername verwendet)</label>
                         <input type="email" name="email" id="appEmail" required>
                     </div>
                     <div class="form-group">
-                        <label>Passwort</label>
+                        <label>Passwort *</label>
                         <input type="password" name="password" id="appPassword" required minlength="6">
                     </div>
                     <div class="form-group">
-                        <label>Passwort bestätigen</label>
+                        <label>Passwort bestätigen *</label>
                         <input type="password" name="password_confirm" id="appPasswordConfirm" required minlength="6">
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Persönliche Daten</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Vorname *</label>
+                            <input type="text" name="first_name" id="appFirstName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nachname *</label>
+                            <input type="text" name="last_name" id="appLastName" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon *</label>
+                        <input type="tel" name="phone" id="appPhone" required>
                     </div>
                 </fieldset>
 
@@ -203,21 +221,7 @@
             <p style="text-align: center; color: #666; margin-bottom: 1rem;">Schritt 2 von 2</p>
             <form id="applicationFormStep2">
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
-                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Persönliche Daten</legend>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>Vorname</label>
-                            <input type="text" name="first_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Nachname</label>
-                            <input type="text" name="last_name" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Telefon</label>
-                        <input type="tel" name="phone">
-                    </div>
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Adresse</legend>
                     <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label>Straße</label>
@@ -892,6 +896,9 @@
             document.getElementById('appEmail').value = applicationStep1Data.email || '';
             document.getElementById('appPassword').value = applicationStep1Data.password || '';
             document.getElementById('appPasswordConfirm').value = applicationStep1Data.password || '';
+            document.getElementById('appFirstName').value = applicationStep1Data.first_name || '';
+            document.getElementById('appLastName').value = applicationStep1Data.last_name || '';
+            document.getElementById('appPhone').value = applicationStep1Data.phone || '';
         }
 
         function initTrainingsContainer() {
@@ -1051,7 +1058,10 @@
             // Save step 1 data
             applicationStep1Data = {
                 email: formData.get('email'),
-                password: formData.get('password')
+                password: formData.get('password'),
+                first_name: formData.get('first_name'),
+                last_name: formData.get('last_name'),
+                phone: formData.get('phone')
             };
 
             // Go to step 2
@@ -1068,9 +1078,9 @@
             const data = {
                 email: applicationStep1Data.email,
                 password: applicationStep1Data.password,
-                first_name: formData.get('first_name'),
-                last_name: formData.get('last_name'),
-                phone: formData.get('phone'),
+                first_name: applicationStep1Data.first_name,
+                last_name: applicationStep1Data.last_name,
+                phone: applicationStep1Data.phone,
                 street: formData.get('street'),
                 house_number: formData.get('house_number'),
                 postal_code: formData.get('postal_code'),
