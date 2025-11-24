@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message
+from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message, TrainerApplication
 from .core.security import create_access_token, get_password_hash, verify_password
 
 # Create tables
@@ -1610,21 +1610,20 @@ def delete_message(message_id):
 @app.route('/users/list')
 @token_required
 def list_users_for_messaging():
-    """Get list of users for messaging (admins and trainers can message each other)."""
+    """Get list of users for messaging."""
     db = get_db()
     user = g.current_user
 
-    if user.role == 'admin':
-        # Admins can message trainers and other admins
+    if user.role in ['admin', 'backoffice_user']:
+        # Admins and backoffice users can message all users
         users = db.query(User).filter(
             User.id != user.id,
-            User.is_active == True,
-            User.role.in_(['admin', 'trainer'])
+            User.is_active == True
         ).all()
     elif user.role == 'trainer':
-        # Trainers can only message admins
+        # Trainers can only message admins and backoffice users
         users = db.query(User).filter(
-            User.role == 'admin',
+            User.role.in_(['admin', 'backoffice_user']),
             User.is_active == True
         ).all()
     else:
@@ -1635,6 +1634,228 @@ def list_users_for_messaging():
         "username": u.username,
         "role": u.role
     } for u in users])
+
+
+# ========== TRAINER APPLICATION ROUTES ==========
+
+def application_to_dict(app):
+    """Convert trainer application to dictionary."""
+    return {
+        "id": app.id,
+        "email": app.email,
+        "first_name": app.first_name,
+        "last_name": app.last_name,
+        "phone": app.phone,
+        "address": app.address,
+        "vat_number": app.vat_number,
+        "linkedin_url": app.linkedin_url,
+        "website": app.website,
+        "default_day_rate": app.default_day_rate,
+        "region": app.region,
+        "bio": app.bio,
+        "specializations": app.specializations,
+        "photo_url": app.photo_url,
+        "status": app.status,
+        "created_at": app.created_at.isoformat() if app.created_at else None,
+        "reviewed_at": app.reviewed_at.isoformat() if app.reviewed_at else None
+    }
+
+
+@app.route('/trainer/apply', methods=['POST'])
+def submit_trainer_application():
+    """Submit a trainer application (no auth required)."""
+    db = get_db()
+    data = request.get_json()
+
+    # Check if email already exists
+    existing_app = db.query(TrainerApplication).filter(
+        TrainerApplication.email == data.get('email')
+    ).first()
+    if existing_app:
+        return jsonify({"error": "Es gibt bereits eine Bewerbung mit dieser E-Mail-Adresse"}), 400
+
+    existing_user = db.query(User).filter(User.email == data.get('email')).first()
+    if existing_user:
+        return jsonify({"error": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"}), 400
+
+    # Create application
+    application = TrainerApplication(
+        email=data.get('email'),
+        password_hash=get_password_hash(data.get('password')),
+        first_name=data.get('first_name'),
+        last_name=data.get('last_name'),
+        phone=data.get('phone'),
+        address=data.get('address'),
+        vat_number=data.get('vat_number'),
+        linkedin_url=data.get('linkedin_url'),
+        website=data.get('website'),
+        default_day_rate=data.get('default_day_rate'),
+        region=data.get('region'),
+        bio=data.get('bio'),
+        specializations=data.get('specializations'),
+        status='pending'
+    )
+
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+
+    # Create notification message for all admins and backoffice users
+    admin_users = db.query(User).filter(
+        User.role.in_(['admin', 'backoffice_user']),
+        User.is_active == True
+    ).all()
+
+    # Create a system message for each admin/backoffice user
+    for admin in admin_users:
+        message = Message(
+            sender_id=admin.id,  # System message, sender = recipient
+            recipient_id=admin.id,
+            message_type='trainer_application',
+            subject=f"Neue Trainerbewerbung: {application.first_name} {application.last_name}",
+            content=f"""Neue Trainerbewerbung eingegangen:
+
+Name: {application.first_name} {application.last_name}
+E-Mail: {application.email}
+Telefon: {application.phone or 'Nicht angegeben'}
+Region: {application.region or 'Nicht angegeben'}
+
+Tagessatz: {application.default_day_rate or 'Nicht angegeben'} EUR
+USt-IdNr: {application.vat_number or 'Nicht angegeben'}
+
+Bio:
+{application.bio or 'Nicht angegeben'}
+
+Spezialisierungen: {application.specializations or 'Nicht angegeben'}
+
+LinkedIn: {application.linkedin_url or 'Nicht angegeben'}
+Website: {application.website or 'Nicht angegeben'}
+
+---
+Application ID: {application.id}""",
+            status='open',
+            is_read=False
+        )
+        db.add(message)
+
+    db.commit()
+
+    return jsonify({"status": "success", "message": "Bewerbung erfolgreich eingereicht", "id": application.id}), 201
+
+
+@app.route('/trainer/applications')
+@token_required
+def list_trainer_applications():
+    """List all trainer applications (admin/backoffice only)."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({"error": "Admin access required"}), 403
+
+    db = get_db()
+    applications = db.query(TrainerApplication).order_by(
+        TrainerApplication.created_at.desc()
+    ).all()
+
+    return jsonify([application_to_dict(app) for app in applications])
+
+
+@app.route('/trainer/applications/<int:app_id>')
+@token_required
+def get_trainer_application(app_id):
+    """Get a single trainer application (admin/backoffice only)."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({"error": "Admin access required"}), 403
+
+    db = get_db()
+    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    if not application:
+        return jsonify({"error": "Application not found"}), 404
+
+    return jsonify(application_to_dict(application))
+
+
+@app.route('/trainer/applications/<int:app_id>/approve', methods=['POST'])
+@token_required
+def approve_trainer_application(app_id):
+    """Approve trainer application and create trainer + user accounts."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({"error": "Admin access required"}), 403
+
+    db = get_db()
+    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    if not application:
+        return jsonify({"error": "Application not found"}), 404
+
+    if application.status != 'pending':
+        return jsonify({"error": "Application already processed"}), 400
+
+    # Create user account
+    user = User(
+        username=application.email,  # Email as username
+        email=application.email,
+        hashed_password=application.password_hash,
+        role='trainer',
+        is_active=True
+    )
+    db.add(user)
+    db.flush()  # Get the user ID
+
+    # Create trainer profile
+    trainer = Trainer(
+        user_id=user.id,
+        first_name=application.first_name,
+        last_name=application.last_name,
+        email=application.email,
+        phone=application.phone,
+        address=application.address,
+        vat_number=application.vat_number,
+        linkedin_url=application.linkedin_url,
+        website=application.website,
+        default_day_rate=application.default_day_rate,
+        region=application.region,
+        bio=application.bio,
+        specializations=application.specializations,
+        photo_url=application.photo_url,
+        is_active=True
+    )
+    db.add(trainer)
+
+    # Update application status
+    application.status = 'approved'
+    application.reviewed_at = datetime.utcnow()
+    application.reviewed_by = g.current_user.id
+
+    db.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": "Trainer erfolgreich angelegt",
+        "user_id": user.id,
+        "trainer_id": trainer.id
+    })
+
+
+@app.route('/trainer/applications/<int:app_id>/reject', methods=['POST'])
+@token_required
+def reject_trainer_application(app_id):
+    """Reject a trainer application."""
+    if g.current_user.role not in ['admin', 'backoffice_user']:
+        return jsonify({"error": "Admin access required"}), 403
+
+    db = get_db()
+    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    if not application:
+        return jsonify({"error": "Application not found"}), 404
+
+    if application.status != 'pending':
+        return jsonify({"error": "Application already processed"}), 400
+
+    application.status = 'rejected'
+    application.reviewed_at = datetime.utcnow()
+    application.reviewed_by = g.current_user.id
+
+    db.commit()
+
+    return jsonify({"status": "success", "message": "Bewerbung abgelehnt"})
 
 
 # WSGI application
