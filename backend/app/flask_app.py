@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message, TrainerApplication
+from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message, TrainerRegistration
 from .core.security import create_access_token, get_password_hash, verify_password
 
 # Create tables
@@ -1668,8 +1668,8 @@ def submit_trainer_application():
     data = request.get_json()
 
     # Check if email already exists
-    existing_app = db.query(TrainerApplication).filter(
-        TrainerApplication.email == data.get('email')
+    existing_app = db.query(TrainerRegistration).filter(
+        TrainerRegistration.email == data.get('email')
     ).first()
     if existing_app:
         return jsonify({"error": "Es gibt bereits eine Bewerbung mit dieser E-Mail-Adresse"}), 400
@@ -1679,7 +1679,7 @@ def submit_trainer_application():
         return jsonify({"error": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"}), 400
 
     # Create application
-    application = TrainerApplication(
+    application = TrainerRegistration(
         email=data.get('email'),
         password_hash=get_password_hash(data.get('password')),
         first_name=data.get('first_name'),
@@ -1751,8 +1751,8 @@ def list_trainer_applications():
         return jsonify({"error": "Admin access required"}), 403
 
     db = get_db()
-    applications = db.query(TrainerApplication).order_by(
-        TrainerApplication.created_at.desc()
+    applications = db.query(TrainerRegistration).order_by(
+        TrainerRegistration.created_at.desc()
     ).all()
 
     return jsonify([application_to_dict(app) for app in applications])
@@ -1766,7 +1766,7 @@ def get_trainer_application(app_id):
         return jsonify({"error": "Admin access required"}), 403
 
     db = get_db()
-    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    application = db.query(TrainerRegistration).filter(TrainerRegistration.id == app_id).first()
     if not application:
         return jsonify({"error": "Application not found"}), 404
 
@@ -1781,7 +1781,7 @@ def approve_trainer_application(app_id):
         return jsonify({"error": "Admin access required"}), 403
 
     db = get_db()
-    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    application = db.query(TrainerRegistration).filter(TrainerRegistration.id == app_id).first()
     if not application:
         return jsonify({"error": "Application not found"}), 404
 
@@ -1847,7 +1847,7 @@ def reject_trainer_application(app_id):
         return jsonify({"error": "Admin access required"}), 403
 
     db = get_db()
-    application = db.query(TrainerApplication).filter(TrainerApplication.id == app_id).first()
+    application = db.query(TrainerRegistration).filter(TrainerRegistration.id == app_id).first()
     if not application:
         return jsonify({"error": "Application not found"}), 404
 
