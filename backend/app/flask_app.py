@@ -665,22 +665,22 @@ def trainer_to_dict(t):
     """Convert trainer model to dictionary."""
     return {
         "id": t.id,
-        "user_id": t.user_id,
+        "user_id": getattr(t, 'user_id', None),
         "first_name": t.first_name,
         "last_name": t.last_name,
         "name": t.name,
         "email": t.email,
         "phone": t.phone,
         "address": t.address,
-        "vat_number": t.vat_number,
-        "linkedin_url": t.linkedin_url,
-        "website": t.website,
-        "photo_path": t.photo_path,
-        "specializations": t.specializations or {"selected": [], "custom": []},
-        "bio": t.bio,
-        "notes": t.notes,
-        "region": t.region,
-        "default_day_rate": t.default_day_rate
+        "vat_number": getattr(t, 'vat_number', None),
+        "linkedin_url": getattr(t, 'linkedin_url', None),
+        "website": getattr(t, 'website', None),
+        "photo_path": getattr(t, 'photo_path', None),
+        "specializations": getattr(t, 'specializations', None) or {"selected": [], "custom": []},
+        "bio": getattr(t, 'bio', None),
+        "notes": getattr(t, 'notes', None),
+        "region": getattr(t, 'region', None),
+        "default_day_rate": getattr(t, 'default_day_rate', None)
     }
 
 
@@ -824,32 +824,43 @@ def delete_trainer(trainer_id):
 
 def training_to_dict(t):
     """Convert training model to dictionary."""
+    start_date = getattr(t, 'start_date', None)
+    end_date = getattr(t, 'end_date', None)
     return {
         "id": t.id,
         "title": t.title,
-        "brand_id": t.brand_id,
-        "customer_id": t.customer_id,
-        "trainer_id": t.trainer_id,
-        "status": t.status,
-        "start_date": t.start_date.isoformat() if t.start_date else None,
-        "end_date": t.end_date.isoformat() if t.end_date else None,
-        "date": t.start_date.isoformat() if t.start_date else None,  # Legacy field
-        "duration_days": t.duration_days,
-        "training_type": t.training_type,
-        "training_format": t.training_format,
-        "location": t.location,
-        "location_details": t.location_details,
-        "online_link": t.online_link,
-        "max_participants": t.max_participants,
-        "language": t.language,
-        "tagessatz": t.tagessatz,
-        "price_external": t.price_external,
-        "price_internal": t.price_internal,
-        "margin": t.margin,
-        "internal_notes": t.internal_notes,
-        "logistics_notes": t.logistics_notes,
-        "communication_notes": t.communication_notes,
-        "finance_notes": t.finance_notes
+        "brand_id": getattr(t, 'brand_id', None),
+        "customer_id": getattr(t, 'customer_id', None),
+        "trainer_id": getattr(t, 'trainer_id', None),
+        "status": getattr(t, 'status', None),
+        "start_date": start_date.isoformat() if start_date else None,
+        "end_date": end_date.isoformat() if end_date else None,
+        "date": start_date.isoformat() if start_date else None,  # Legacy field
+        "duration_days": getattr(t, 'duration_days', None),
+        "duration_hours": getattr(t, 'duration_hours', None),
+        "duration_type": getattr(t, 'duration_type', 'days'),
+        "zeitraum": getattr(t, 'zeitraum', None),
+        "training_type": getattr(t, 'training_type', None),
+        "training_format": getattr(t, 'training_format', None),
+        "location": getattr(t, 'location', None),
+        "location_details": getattr(t, 'location_details', None),
+        "location_cost": getattr(t, 'location_cost', None),
+        "location_by_customer": getattr(t, 'location_by_customer', False),
+        "catering_cost": getattr(t, 'catering_cost', None),
+        "catering_by_customer": getattr(t, 'catering_by_customer', False),
+        "provision": getattr(t, 'provision', None),
+        "other_costs": getattr(t, 'other_costs', None),
+        "online_link": getattr(t, 'online_link', None),
+        "max_participants": getattr(t, 'max_participants', None),
+        "language": getattr(t, 'language', None),
+        "tagessatz": getattr(t, 'tagessatz', None),
+        "price_external": getattr(t, 'price_external', None),
+        "price_internal": getattr(t, 'price_internal', None),
+        "margin": getattr(t, 'margin', None),
+        "internal_notes": getattr(t, 'internal_notes', None),
+        "logistics_notes": getattr(t, 'logistics_notes', None),
+        "communication_notes": getattr(t, 'communication_notes', None),
+        "finance_notes": getattr(t, 'finance_notes', None)
     }
 
 
@@ -889,6 +900,13 @@ def create_training():
             internal_notes=data.get('internal_notes')
         )
 
+        # Set additional fields if model supports them
+        for field in ['duration_hours', 'duration_type', 'zeitraum', 'location_cost',
+                      'location_by_customer', 'catering_cost', 'catering_by_customer',
+                      'provision', 'other_costs']:
+            if field in data and hasattr(training, field):
+                setattr(training, field, data[field])
+
         db = get_db()
         db.add(training)
         db.commit()
@@ -923,10 +941,13 @@ def update_training(training_id):
 
     # Update simple fields
     for key in ['title', 'location', 'status', 'customer_id', 'trainer_id', 'brand_id',
-                'duration_days', 'training_type', 'training_format', 'max_participants',
-                'tagessatz', 'price_external', 'price_internal', 'internal_notes',
+                'duration_days', 'duration_hours', 'duration_type', 'zeitraum',
+                'training_type', 'training_format', 'max_participants',
+                'tagessatz', 'location_cost', 'location_by_customer',
+                'catering_cost', 'catering_by_customer', 'provision', 'other_costs',
+                'price_external', 'price_internal', 'internal_notes',
                 'logistics_notes', 'communication_notes', 'finance_notes']:
-        if key in data:
+        if key in data and hasattr(training, key):
             setattr(training, key, data[key])
 
     # Update date fields
