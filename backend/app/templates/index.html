@@ -116,6 +116,7 @@
                 <a href="#" onclick="showSection('customers')" data-section="customers">Kunden</a>
                 <a href="#" onclick="showSection('trainers')" data-section="trainers">Trainer</a>
                 <a href="#" onclick="showSection('brands')" data-section="brands">Marken</a>
+                <a href="#" onclick="showSection('locations')" data-section="locations">Locations</a>
                 <div id="adminNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
                     <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
@@ -229,6 +230,30 @@
                                     <tr><th>Name</th><th>Beschreibung</th><th>Aktionen</th></tr>
                                 </thead>
                                 <tbody id="brandsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Locations -->
+                <div id="section-locations" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Locations
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal('location')">+ Neu</button>
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Ort</th>
+                                        <th>Max TN</th>
+                                        <th>Catering</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="locationsTable"></tbody>
                             </table>
                         </div>
                     </div>
@@ -424,6 +449,7 @@
             else if (name === 'customers') loadCustomers();
             else if (name === 'trainers') loadTrainers();
             else if (name === 'brands') loadBrands();
+            else if (name === 'locations') loadLocations();
             else if (name === 'users') loadUsers();
             else if (name === 'trainer-dashboard') loadTrainerDashboard();
             else if (name === 'open-trainings') loadOpenTrainings();
@@ -796,6 +822,39 @@
             }
         }
 
+        async function loadLocations() {
+            try {
+                console.log('Loading locations...');
+                const res = await apiCall('/locations');
+                console.log('Locations response status:', res.status);
+                if (!res.ok) {
+                    console.error('Failed to load locations:', res.status);
+                    document.getElementById('locationsTable').innerHTML = '<tr><td colspan="5">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const locations = await res.json();
+                console.log('Loaded locations:', locations);
+
+                const cateringLabels = { yes: 'Ja', no: 'Nein', external: 'Extern' };
+
+                document.getElementById('locationsTable').innerHTML = locations.map(loc => `
+                    <tr>
+                        <td>${loc.name || '-'}</td>
+                        <td>${loc.city || '-'}</td>
+                        <td>${loc.max_participants || '-'}</td>
+                        <td>${cateringLabels[loc.catering_available] || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="showEditModal('location', ${loc.id})" style="margin-right:0.25rem;">Bearbeiten</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('locations', ${loc.id})">Löschen</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5">Keine Locations</td></tr>';
+            } catch (err) {
+                console.error('Error loading locations:', err);
+                document.getElementById('locationsTable').innerHTML = '<tr><td colspan="5">Fehler beim Laden</td></tr>';
+            }
+        }
+
         async function deleteItem(type, id) {
             if (!confirm('Wirklich löschen?')) return;
             const res = await apiCall(`/${type}/${id}`, { method: 'DELETE' });
@@ -818,6 +877,7 @@
             training: 'custom', // Special handling for extended training form
             customer: 'custom', // Special handling for customer form
             trainer: 'custom', // Special handling for trainer form
+            location: 'custom', // Special handling for location form
             brand: [
                 { name: 'name', label: 'Name', type: 'text', required: true },
                 { name: 'description', label: 'Beschreibung', type: 'textarea' }
@@ -835,16 +895,19 @@
         let cachedBrands = [];
         let cachedCustomers = [];
         let cachedTrainers = [];
+        let cachedLocations = [];
 
         async function loadFormData() {
-            const [brandsRes, customersRes, trainersRes] = await Promise.all([
+            const [brandsRes, customersRes, trainersRes, locationsRes] = await Promise.all([
                 apiCall('/brands'),
                 apiCall('/customers'),
-                apiCall('/trainers')
+                apiCall('/trainers'),
+                apiCall('/locations')
             ]);
             if (brandsRes.ok) cachedBrands = await brandsRes.json();
             if (customersRes.ok) cachedCustomers = await customersRes.json();
             if (trainersRes.ok) cachedTrainers = await trainersRes.json();
+            if (locationsRes.ok) cachedLocations = await locationsRes.json();
         }
 
         // Store form data for inline customer creation
@@ -896,17 +959,17 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>Startdatum</label>
-                        <input type="date" name="start_date" value="${data.start_date || ''}" style="width:100%;padding:0.5rem;">
+                        <input type="date" name="start_date" value="${data.start_date ? data.start_date.split('T')[0] : ''}" style="width:100%;padding:0.5rem;">
                     </div>
                     <div class="form-group">
                         <label>Enddatum</label>
-                        <input type="date" name="end_date" value="${data.end_date || ''}" style="width:100%;padding:0.5rem;">
+                        <input type="date" name="end_date" value="${data.end_date ? data.end_date.split('T')[0] : ''}" style="width:100%;padding:0.5rem;">
                     </div>
                     <div class="form-group">
                         <label>Dauer</label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="number" name="duration_value" value="${durationValue}" min="1" style="flex:1;padding:0.5rem;">
-                            <select name="duration_type" style="width:80px;padding:0.5rem;" onchange="updateDurationLabel(this)">
+                            <input type="number" name="duration_value" value="${durationValue}" min="1" style="flex:1;padding:0.5rem;" onchange="calculateInternalPrice()">
+                            <select name="duration_type" style="width:80px;padding:0.5rem;" onchange="calculateInternalPrice()">
                                 <option value="days" ${data.duration_type !== 'hours' ? 'selected' : ''}>Tage</option>
                                 <option value="hours" ${data.duration_type === 'hours' ? 'selected' : ''}>Std.</option>
                             </select>
@@ -933,6 +996,16 @@
                         </select>
                     </div>
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Location buchen</label>
+                        <input type="text" name="location_booking" value="${data.location_booking || ''}" placeholder="z.B. Hotel, Konferenzraum..." style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Catering buchen</label>
+                        <input type="text" name="catering_booking" value="${data.catering_booking || ''}" placeholder="z.B. Mittagessen, Getränke..." style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>Ort</label>
                     <input type="text" name="location" value="${data.location || ''}" style="width:100%;padding:0.5rem;">
@@ -947,23 +1020,13 @@
                         </div>
                         <div class="form-group">
                             <label>Location-Kosten (€)</label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <input type="number" name="location_cost" id="location_cost" value="${data.location_cost || ''}" step="0.01" style="flex:1;padding:0.5rem;" onchange="calculateInternalPrice()">
-                                <label style="font-weight: normal; white-space: nowrap;">
-                                    <input type="checkbox" name="location_by_customer" ${data.location_by_customer ? 'checked' : ''} onchange="calculateInternalPrice()"> Kunde
-                                </label>
-                            </div>
+                            <input type="number" name="location_cost" id="location_cost" value="${data.location_cost || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculateInternalPrice()">
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label>Catering-Kosten (€)</label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <input type="number" name="catering_cost" id="catering_cost" value="${data.catering_cost || ''}" step="0.01" style="flex:1;padding:0.5rem;" onchange="calculateInternalPrice()">
-                                <label style="font-weight: normal; white-space: nowrap;">
-                                    <input type="checkbox" name="catering_by_customer" ${data.catering_by_customer ? 'checked' : ''} onchange="calculateInternalPrice()"> Kunde
-                                </label>
-                            </div>
+                            <input type="number" name="catering_cost" id="catering_cost" value="${data.catering_cost || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculateInternalPrice()">
                         </div>
                         <div class="form-group">
                             <label>Provision (€)</label>
@@ -974,21 +1037,25 @@
                         <label>Sonstige Kosten (€)</label>
                         <input type="number" name="other_costs" id="other_costs" value="${data.other_costs || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculateInternalPrice()">
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ddd;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ddd;">
                         <div class="form-group">
                             <label><strong>Preis Intern (€)</strong> <small style="color: #666;">(berechnet)</small></label>
                             <input type="number" name="price_internal" id="price_internal" value="${data.price_internal || ''}" step="0.01" style="width:100%;padding:0.5rem;background:#f5f5f5;" readonly>
                         </div>
                         <div class="form-group">
                             <label><strong>Preis Extern (€)</strong></label>
-                            <input type="number" name="price_external" value="${data.price_external || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                            <input type="number" name="price_external" id="price_external" value="${data.price_external || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculatePricePerParticipant()">
+                        </div>
+                        <div class="form-group">
+                            <label><strong>Preis/Teilnehmer (€)</strong></label>
+                            <input type="number" name="price_per_participant" id="price_per_participant" value="${data.price_per_participant || ''}" step="0.01" style="width:100%;padding:0.5rem;background:#f5f5f5;" readonly>
                         </div>
                     </div>
                 </fieldset>
 
                 <div class="form-group">
                     <label>Max. Teilnehmer</label>
-                    <input type="number" name="max_participants" value="${data.max_participants || ''}" style="width:100%;padding:0.5rem;">
+                    <input type="number" name="max_participants" id="max_participants" value="${data.max_participants || ''}" style="width:100%;padding:0.5rem;" onchange="calculatePricePerParticipant()">
                 </div>
                 <div class="form-group">
                     <label>Interne Notizen</label>
@@ -1000,9 +1067,7 @@
         function calculateInternalPrice() {
             const tagessatz = parseFloat(document.getElementById('tagessatz')?.value) || 0;
             const locationCost = parseFloat(document.getElementById('location_cost')?.value) || 0;
-            const locationByCustomer = document.querySelector('[name="location_by_customer"]')?.checked;
             const cateringCost = parseFloat(document.getElementById('catering_cost')?.value) || 0;
-            const cateringByCustomer = document.querySelector('[name="catering_by_customer"]')?.checked;
             const provision = parseFloat(document.getElementById('provision')?.value) || 0;
             const otherCosts = parseFloat(document.getElementById('other_costs')?.value) || 0;
 
@@ -1014,15 +1079,26 @@
             // Calculate trainer cost
             const trainerCost = tagessatz * days;
 
-            // Calculate total (exclude costs if customer pays)
-            let total = trainerCost;
-            if (!locationByCustomer) total += locationCost;
-            if (!cateringByCustomer) total += cateringCost;
-            total += provision + otherCosts;
+            // Calculate total
+            const total = trainerCost + locationCost + cateringCost + provision + otherCosts;
 
             const priceInternalField = document.getElementById('price_internal');
             if (priceInternalField) {
                 priceInternalField.value = total.toFixed(2);
+            }
+        }
+
+        function calculatePricePerParticipant() {
+            const priceExternal = parseFloat(document.getElementById('price_external')?.value) || 0;
+            const maxParticipants = parseInt(document.getElementById('max_participants')?.value) || 0;
+
+            const pricePerParticipantField = document.getElementById('price_per_participant');
+            if (pricePerParticipantField) {
+                if (maxParticipants > 0) {
+                    pricePerParticipantField.value = (priceExternal / maxParticipants).toFixed(2);
+                } else {
+                    pricePerParticipantField.value = '';
+                }
             }
         }
 
@@ -1222,7 +1298,7 @@
         async function showCreateModal(type) {
             currentFormType = type;
             editingId = null;
-            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer' };
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer', location: 'Location' };
             document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
 
             const fields = formFields[type];
@@ -1235,6 +1311,8 @@
                     document.getElementById('modalFields').innerHTML = generateTrainerForm();
                 } else if (type === 'customer') {
                     document.getElementById('modalFields').innerHTML = generateCustomerForm();
+                } else if (type === 'location') {
+                    document.getElementById('modalFields').innerHTML = generateLocationForm();
                 }
             } else {
                 document.getElementById('modalFields').innerHTML = fields.map(f => `
@@ -1260,7 +1338,7 @@
         async function showEditModal(type, id) {
             currentFormType = type;
             editingId = id;
-            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke' };
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', location: 'Location' };
             document.getElementById('modalTitle').textContent = `${titles[type]} bearbeiten`;
 
             // Load the item data
@@ -1281,6 +1359,8 @@
                     document.getElementById('modalFields').innerHTML = generateTrainerFormWithData(data);
                 } else if (type === 'customer') {
                     document.getElementById('modalFields').innerHTML = generateCustomerFormWithData(data);
+                } else if (type === 'location') {
+                    document.getElementById('modalFields').innerHTML = generateLocationFormWithData(data);
                 }
             } else {
                 document.getElementById('modalFields').innerHTML = fields.map(f => `
@@ -1375,6 +1455,155 @@
             `;
         }
 
+        function generateLocationForm() {
+            return generateLocationFormWithData({});
+        }
+
+        function generateLocationFormWithData(data) {
+            return `
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" value="${data.name || ''}" required style="width:100%;padding:0.5rem;">
+                </div>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">Adresse</legend>
+                    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Straße</label>
+                            <input type="text" name="street" value="${data.street || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nr.</label>
+                            <input type="text" name="street_number" value="${data.street_number || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>PLZ</label>
+                            <input type="text" name="postal_code" value="${data.postal_code || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Ort</label>
+                            <input type="text" name="city" value="${data.city || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">Rechnungsadresse</legend>
+                    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Straße</label>
+                            <input type="text" name="billing_street" value="${data.billing_street || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nr.</label>
+                            <input type="text" name="billing_street_number" value="${data.billing_street_number || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>PLZ</label>
+                            <input type="text" name="billing_postal_code" value="${data.billing_postal_code || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Ort</label>
+                            <input type="text" name="billing_city" value="${data.billing_city || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>VAT/USt-ID</label>
+                        <input type="text" name="billing_vat" value="${data.billing_vat || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">Ansprechpartner</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Vorname</label>
+                            <input type="text" name="contact_first_name" value="${data.contact_first_name || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nachname</label>
+                            <input type="text" name="contact_last_name" value="${data.contact_last_name || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="contact_email" value="${data.contact_email || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Telefon</label>
+                            <input type="text" name="contact_phone" value="${data.contact_phone || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hinweise</label>
+                        <textarea name="contact_notes" style="width:100%;padding:0.5rem;min-height:60px;">${data.contact_notes || ''}</textarea>
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">Location Details</legend>
+                    <div class="form-group">
+                        <label>Location Beschreibung</label>
+                        <textarea name="description" style="width:100%;padding:0.5rem;min-height:80px;">${data.description || ''}</textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Max Teilnehmer</label>
+                            <input type="number" name="max_participants" value="${data.max_participants || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Catering vorhanden</label>
+                            <select name="catering_available" style="width:100%;padding:0.5rem;">
+                                <option value="no" ${data.catering_available === 'no' || !data.catering_available ? 'selected' : ''}>Nein</option>
+                                <option value="yes" ${data.catering_available === 'yes' ? 'selected' : ''}>Ja</option>
+                                <option value="external" ${data.catering_available === 'external' ? 'selected' : ''}>Extern</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Features</label>
+                        <textarea name="features" style="width:100%;padding:0.5rem;min-height:60px;" placeholder="z.B. Beamer, Whiteboard, WLAN...">${data.features || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Link zur Location</label>
+                        <input type="url" name="website_link" value="${data.website_link || ''}" style="width:100%;padding:0.5rem;" placeholder="https://...">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Mietkosten (€)</label>
+                            <input type="number" name="rental_cost" value="${data.rental_cost || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Kosten pro</label>
+                            <select name="rental_cost_type" style="width:100%;padding:0.5rem;">
+                                <option value="day" ${data.rental_cost_type === 'day' || !data.rental_cost_type ? 'selected' : ''}>Tag</option>
+                                <option value="hour" ${data.rental_cost_type === 'hour' ? 'selected' : ''}>Stunde</option>
+                                <option value="total" ${data.rental_cost_type === 'total' ? 'selected' : ''}>Gesamt</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Parken</label>
+                        <textarea name="parking" style="width:100%;padding:0.5rem;min-height:60px;">${data.parking || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Anreise</label>
+                        <textarea name="directions" style="width:100%;padding:0.5rem;min-height:60px;">${data.directions || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Informationen für TN</label>
+                        <textarea name="participant_info" style="width:100%;padding:0.5rem;min-height:80px;">${data.participant_info || ''}</textarea>
+                    </div>
+                </fieldset>
+            `;
+        }
+
         function generateTrainerFormWithData(data) {
             const specs = data.specializations || {selected: [], custom: []};
             return `
@@ -1464,7 +1693,7 @@
             const formData = new FormData(e.target);
             let data = {};
 
-            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands', user: 'auth/register' };
+            const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands', user: 'auth/register', location: 'locations' };
 
             if (currentFormType === 'training') {
                 // Handle training form with all extended fields
@@ -1486,16 +1715,19 @@
                     training_type: formData.get('training_type'),
                     training_format: formData.get('training_format'),
                     location: formData.get('location'),
+                    location_booking: formData.get('location_booking') || null,
+                    catering_booking: formData.get('catering_booking') || null,
                     tagessatz: formData.get('tagessatz') ? parseFloat(formData.get('tagessatz')) : null,
                     location_cost: formData.get('location_cost') ? parseFloat(formData.get('location_cost')) : null,
-                    location_by_customer: formData.get('location_by_customer') === 'on',
                     catering_cost: formData.get('catering_cost') ? parseFloat(formData.get('catering_cost')) : null,
-                    catering_by_customer: formData.get('catering_by_customer') === 'on',
                     provision: formData.get('provision') ? parseFloat(formData.get('provision')) : null,
                     other_costs: formData.get('other_costs') ? parseFloat(formData.get('other_costs')) : null,
                     price_external: formData.get('price_external') ? parseFloat(formData.get('price_external')) : null,
                     price_internal: formData.get('price_internal') ? parseFloat(formData.get('price_internal')) : null,
+                    price_per_participant: formData.get('price_per_participant') ? parseFloat(formData.get('price_per_participant')) : null,
                     max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : null,
+                    language: formData.get('language') || null,
+                    online_link: formData.get('online_link') || null,
                     internal_notes: formData.get('internal_notes')
                 };
             } else if (currentFormType === 'trainer') {
@@ -1534,6 +1766,35 @@
                     city: formData.get('city'),
                     conditions: formData.get('conditions'),
                     comment: formData.get('comment')
+                };
+            } else if (currentFormType === 'location') {
+                // Handle location form
+                data = {
+                    name: formData.get('name'),
+                    city: formData.get('city'),
+                    street: formData.get('street'),
+                    street_number: formData.get('street_number'),
+                    postal_code: formData.get('postal_code'),
+                    billing_street: formData.get('billing_street'),
+                    billing_street_number: formData.get('billing_street_number'),
+                    billing_postal_code: formData.get('billing_postal_code'),
+                    billing_city: formData.get('billing_city'),
+                    billing_vat: formData.get('billing_vat'),
+                    contact_first_name: formData.get('contact_first_name'),
+                    contact_last_name: formData.get('contact_last_name'),
+                    contact_email: formData.get('contact_email'),
+                    contact_phone: formData.get('contact_phone'),
+                    contact_notes: formData.get('contact_notes'),
+                    description: formData.get('description'),
+                    max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : null,
+                    features: formData.get('features'),
+                    website_link: formData.get('website_link'),
+                    catering_available: formData.get('catering_available'),
+                    rental_cost: formData.get('rental_cost') ? parseFloat(formData.get('rental_cost')) : null,
+                    rental_cost_type: formData.get('rental_cost_type'),
+                    parking: formData.get('parking'),
+                    directions: formData.get('directions'),
+                    participant_info: formData.get('participant_info')
                 };
             } else if (currentFormType === 'user') {
                 // Handle user form - checkbox needs special handling
