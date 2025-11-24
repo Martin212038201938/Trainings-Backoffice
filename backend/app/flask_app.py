@@ -822,21 +822,42 @@ def delete_trainer(trainer_id):
 
 # ============== Trainings Routes ==============
 
+def training_to_dict(t):
+    """Convert training model to dictionary."""
+    return {
+        "id": t.id,
+        "title": t.title,
+        "brand_id": t.brand_id,
+        "customer_id": t.customer_id,
+        "trainer_id": t.trainer_id,
+        "status": t.status,
+        "start_date": t.start_date.isoformat() if t.start_date else None,
+        "end_date": t.end_date.isoformat() if t.end_date else None,
+        "date": t.start_date.isoformat() if t.start_date else None,  # Legacy field
+        "duration_days": t.duration_days,
+        "training_type": t.training_type,
+        "training_format": t.training_format,
+        "location": t.location,
+        "location_details": t.location_details,
+        "online_link": t.online_link,
+        "max_participants": t.max_participants,
+        "language": t.language,
+        "tagessatz": t.tagessatz,
+        "price_external": t.price_external,
+        "price_internal": t.price_internal,
+        "margin": t.margin,
+        "internal_notes": t.internal_notes,
+        "logistics_notes": t.logistics_notes,
+        "communication_notes": t.communication_notes,
+        "finance_notes": t.finance_notes
+    }
+
+
 @app.route('/trainings')
 @token_required
 def list_trainings():
     trainings = get_db().query(Training).all()
-    return jsonify([{
-        "id": t.id,
-        "title": t.title,
-        "description": t.description,
-        "date": t.date.isoformat() if t.date else None,
-        "duration_hours": t.duration_hours,
-        "location": t.location,
-        "status": t.status,
-        "customer_id": t.customer_id,
-        "trainer_id": t.trainer_id
-    } for t in trainings])
+    return jsonify([training_to_dict(t) for t in trainings])
 
 
 @app.route('/trainings', methods=['POST'])
@@ -847,33 +868,36 @@ def create_training():
         return jsonify({'error': 'Invalid JSON'}), 400
 
     from datetime import datetime as dt
-    training = Training(
-        title=data.get('title'),
-        description=data.get('description'),
-        date=dt.fromisoformat(data['date']) if data.get('date') else None,
-        duration_hours=data.get('duration_hours'),
-        location=data.get('location'),
-        status=data.get('status', 'planned'),
-        customer_id=data.get('customer_id'),
-        trainer_id=data.get('trainer_id')
-    )
 
-    db = get_db()
-    db.add(training)
-    db.commit()
-    db.refresh(training)
+    try:
+        training = Training(
+            title=data.get('title'),
+            brand_id=data.get('brand_id'),
+            customer_id=data.get('customer_id'),
+            trainer_id=data.get('trainer_id'),
+            status=data.get('status', 'lead'),
+            start_date=dt.fromisoformat(data['start_date']).date() if data.get('start_date') else None,
+            end_date=dt.fromisoformat(data['end_date']).date() if data.get('end_date') else None,
+            duration_days=data.get('duration_days', 1),
+            training_type=data.get('training_type'),
+            training_format=data.get('training_format'),
+            location=data.get('location'),
+            max_participants=data.get('max_participants'),
+            tagessatz=data.get('tagessatz'),
+            price_external=data.get('price_external'),
+            price_internal=data.get('price_internal'),
+            internal_notes=data.get('internal_notes')
+        )
 
-    return jsonify({
-        "id": training.id,
-        "title": training.title,
-        "description": training.description,
-        "date": training.date.isoformat() if training.date else None,
-        "duration_hours": training.duration_hours,
-        "location": training.location,
-        "status": training.status,
-        "customer_id": training.customer_id,
-        "trainer_id": training.trainer_id
-    }), 201
+        db = get_db()
+        db.add(training)
+        db.commit()
+        db.refresh(training)
+
+        return jsonify(training_to_dict(training)), 201
+    except Exception as e:
+        logger.error(f"Error creating training: {e}")
+        return jsonify({'error': f'Fehler beim Erstellen: {str(e)}'}), 500
 
 
 @app.route('/trainings/<int:training_id>')
@@ -883,17 +907,7 @@ def get_training(training_id):
     if not training:
         return jsonify({'error': 'Training not found'}), 404
 
-    return jsonify({
-        "id": training.id,
-        "title": training.title,
-        "description": training.description,
-        "date": training.date.isoformat() if training.date else None,
-        "duration_hours": training.duration_hours,
-        "location": training.location,
-        "status": training.status,
-        "customer_id": training.customer_id,
-        "trainer_id": training.trainer_id
-    })
+    return jsonify(training_to_dict(training))
 
 
 @app.route('/trainings/<int:training_id>', methods=['PUT'])
@@ -905,28 +919,26 @@ def update_training(training_id):
         return jsonify({'error': 'Training not found'}), 404
 
     data = request.get_json()
-    for key in ['title', 'description', 'duration_hours', 'location', 'status', 'customer_id', 'trainer_id']:
+    from datetime import datetime as dt
+
+    # Update simple fields
+    for key in ['title', 'location', 'status', 'customer_id', 'trainer_id', 'brand_id',
+                'duration_days', 'training_type', 'training_format', 'max_participants',
+                'tagessatz', 'price_external', 'price_internal', 'internal_notes',
+                'logistics_notes', 'communication_notes', 'finance_notes']:
         if key in data:
             setattr(training, key, data[key])
 
-    if 'date' in data:
-        from datetime import datetime as dt
-        training.date = dt.fromisoformat(data['date']) if data['date'] else None
+    # Update date fields
+    if 'start_date' in data:
+        training.start_date = dt.fromisoformat(data['start_date']).date() if data['start_date'] else None
+    if 'end_date' in data:
+        training.end_date = dt.fromisoformat(data['end_date']).date() if data['end_date'] else None
 
     db.commit()
     db.refresh(training)
 
-    return jsonify({
-        "id": training.id,
-        "title": training.title,
-        "description": training.description,
-        "date": training.date.isoformat() if training.date else None,
-        "duration_hours": training.duration_hours,
-        "location": training.location,
-        "status": training.status,
-        "customer_id": training.customer_id,
-        "trainer_id": training.trainer_id
-    })
+    return jsonify(training_to_dict(training))
 
 
 @app.route('/trainings/<int:training_id>', methods=['DELETE'])

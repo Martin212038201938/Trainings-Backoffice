@@ -688,6 +688,7 @@
                         <td>${t.status || '-'}</td>
                         <td>${t.date ? new Date(t.date).toLocaleDateString('de') : '-'}</td>
                         <td>
+                            <button class="btn btn-sm btn-secondary" onclick="showEditModal('training', ${t.id})" style="margin-right:0.25rem;">Bearbeiten</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteItem('trainings', ${t.id})">Löschen</button>
                         </td>
                     </tr>
@@ -709,10 +710,11 @@
                 const customers = await res.json();
                 document.getElementById('customersTable').innerHTML = customers.map(c => `
                     <tr>
-                        <td>${c.name || '-'}</td>
+                        <td title="Tel: ${c.phone || '-'}\nAdresse: ${c.street || ''} ${c.street_number || ''}, ${c.postal_code || ''} ${c.city || ''}">${c.name || c.company || '-'}</td>
                         <td>${c.email || '-'}</td>
                         <td>${c.company || '-'}</td>
                         <td>
+                            <button class="btn btn-sm btn-secondary" onclick="showEditModal('customer', ${c.id})" style="margin-right:0.25rem;">Bearbeiten</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteItem('customers', ${c.id})">Löschen</button>
                         </td>
                     </tr>
@@ -737,13 +739,14 @@
                     const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
                     return `
                         <tr>
-                            <td>
+                            <td title="Tel: ${t.phone || '-'}\nRegion: ${t.region || '-'}\nTagessatz: ${t.default_day_rate ? t.default_day_rate + ' €' : '-'}">
                                 ${t.photo_path ? `<img src="${t.photo_path}" style="width:30px;height:30px;border-radius:50%;margin-right:0.5rem;vertical-align:middle;">` : ''}
                                 ${t.name || '-'}
                             </td>
                             <td>${t.email || '-'}</td>
                             <td>${allSpecs.slice(0, 3).join(', ') || '-'}${allSpecs.length > 3 ? '...' : ''}</td>
                             <td>
+                                <button class="btn btn-sm btn-secondary" onclick="showEditModal('trainer', ${t.id})" style="margin-right:0.25rem;">Bearbeiten</button>
                                 ${t.linkedin_url ? `<a href="${t.linkedin_url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right:0.25rem;">LinkedIn</a>` : ''}
                                 <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
                             </td>
@@ -780,7 +783,10 @@
                         <td>${b.name || '-'}</td>
                         <td>${b.description || '-'}</td>
                         <td>
-                            ${currentUser && currentUser.role !== 'trainer' ? `<button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>` : ''}
+                            ${currentUser && currentUser.role !== 'trainer' ? `
+                                <button class="btn btn-sm btn-secondary" onclick="showEditModal('brand', ${b.id})" style="margin-right:0.25rem;">Bearbeiten</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteItem('brands', ${b.id})">Löschen</button>
+                            ` : ''}
                         </td>
                     </tr>
                 `).join('') || '<tr><td colspan="3">Keine Marken</td></tr>';
@@ -809,12 +815,7 @@
         ];
 
         const formFields = {
-            training: [
-                { name: 'title', label: 'Titel', type: 'text', required: true },
-                { name: 'description', label: 'Beschreibung', type: 'textarea' },
-                { name: 'date', label: 'Datum', type: 'date' },
-                { name: 'status', label: 'Status', type: 'select', options: ['planned', 'confirmed', 'delivered', 'invoiced'] }
-            ],
+            training: 'custom', // Special handling for extended training form
             customer: 'custom', // Special handling for customer form
             trainer: 'custom', // Special handling for trainer form
             brand: [
@@ -829,6 +830,120 @@
                 { name: 'is_active', label: 'Aktiv', type: 'checkbox' }
             ]
         };
+
+        // Cache for dropdowns
+        let cachedBrands = [];
+        let cachedCustomers = [];
+        let cachedTrainers = [];
+
+        async function loadFormData() {
+            const [brandsRes, customersRes, trainersRes] = await Promise.all([
+                apiCall('/brands'),
+                apiCall('/customers'),
+                apiCall('/trainers')
+            ]);
+            if (brandsRes.ok) cachedBrands = await brandsRes.json();
+            if (customersRes.ok) cachedCustomers = await customersRes.json();
+            if (trainersRes.ok) cachedTrainers = await trainersRes.json();
+        }
+
+        function generateTrainingForm(data = {}) {
+            return `
+                <div class="form-group">
+                    <label>Titel *</label>
+                    <input type="text" name="title" value="${data.title || ''}" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Marke *</label>
+                        <select name="brand_id" required style="width:100%;padding:0.5rem;">
+                            <option value="">-- Auswählen --</option>
+                            ${cachedBrands.map(b => `<option value="${b.id}" ${data.brand_id == b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Kunde *</label>
+                        <select name="customer_id" required style="width:100%;padding:0.5rem;">
+                            <option value="">-- Auswählen --</option>
+                            ${cachedCustomers.map(c => `<option value="${c.id}" ${data.customer_id == c.id ? 'selected' : ''}>${c.company || c.name}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Trainer</label>
+                        <select name="trainer_id" style="width:100%;padding:0.5rem;">
+                            <option value="">-- Kein Trainer --</option>
+                            ${cachedTrainers.map(t => `<option value="${t.id}" ${data.trainer_id == t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status" style="width:100%;padding:0.5rem;">
+                            ${['lead', 'appointment_scheduled', 'initial_contact', 'proposal_sent', 'trainer_outreach', 'trainer_confirmed', 'planning', 'delivered', 'invoiced'].map(s =>
+                                `<option value="${s}" ${data.status === s ? 'selected' : ''}>${s}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Startdatum</label>
+                        <input type="date" name="start_date" value="${data.start_date || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Enddatum</label>
+                        <input type="date" name="end_date" value="${data.end_date || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Dauer (Tage)</label>
+                        <input type="number" name="duration_days" value="${data.duration_days || 1}" min="1" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Trainingsart</label>
+                        <select name="training_type" style="width:100%;padding:0.5rem;">
+                            <option value="classroom" ${data.training_type === 'classroom' ? 'selected' : ''}>Präsenz</option>
+                            <option value="online" ${data.training_type === 'online' ? 'selected' : ''}>Online</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select name="training_format" style="width:100%;padding:0.5rem;">
+                            <option value="inhouse" ${data.training_format === 'inhouse' ? 'selected' : ''}>Inhouse</option>
+                            <option value="public" ${data.training_format === 'public' ? 'selected' : ''}>Öffentlich</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Ort</label>
+                    <input type="text" name="location" value="${data.location || ''}" style="width:100%;padding:0.5rem;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Tagessatz (€)</label>
+                        <input type="number" name="tagessatz" value="${data.tagessatz || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Preis Extern (€)</label>
+                        <input type="number" name="price_external" value="${data.price_external || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Preis Intern (€)</label>
+                        <input type="number" name="price_internal" value="${data.price_internal || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Max. Teilnehmer</label>
+                    <input type="number" name="max_participants" value="${data.max_participants || ''}" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Interne Notizen</label>
+                    <textarea name="internal_notes" style="width:100%;padding:0.5rem;min-height:60px;">${data.internal_notes || ''}</textarea>
+                </div>
+            `;
+        }
 
         function generateCustomerForm() {
             return `
@@ -986,16 +1101,21 @@
         }
 
         let currentFormType = '';
+        let editingId = null;
 
-        function showCreateModal(type) {
+        async function showCreateModal(type) {
             currentFormType = type;
+            editingId = null;
             const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer' };
             document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
 
             const fields = formFields[type];
 
             if (fields === 'custom') {
-                if (type === 'trainer') {
+                if (type === 'training') {
+                    await loadFormData();
+                    document.getElementById('modalFields').innerHTML = generateTrainingForm();
+                } else if (type === 'trainer') {
                     document.getElementById('modalFields').innerHTML = generateTrainerForm();
                 } else if (type === 'customer') {
                     document.getElementById('modalFields').innerHTML = generateCustomerForm();
@@ -1021,6 +1141,204 @@
             document.getElementById('createModal').style.display = 'flex';
         }
 
+        async function showEditModal(type, id) {
+            currentFormType = type;
+            editingId = id;
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke' };
+            document.getElementById('modalTitle').textContent = `${titles[type]} bearbeiten`;
+
+            // Load the item data
+            const res = await apiCall(`/${type}s/${id}`);
+            if (!res.ok) {
+                alert('Fehler beim Laden');
+                return;
+            }
+            const data = await res.json();
+
+            const fields = formFields[type];
+
+            if (fields === 'custom') {
+                if (type === 'training') {
+                    await loadFormData();
+                    document.getElementById('modalFields').innerHTML = generateTrainingForm(data);
+                } else if (type === 'trainer') {
+                    document.getElementById('modalFields').innerHTML = generateTrainerFormWithData(data);
+                } else if (type === 'customer') {
+                    document.getElementById('modalFields').innerHTML = generateCustomerFormWithData(data);
+                }
+            } else {
+                document.getElementById('modalFields').innerHTML = fields.map(f => `
+                    <div class="form-group">
+                        <label>${f.label}</label>
+                        ${f.type === 'textarea'
+                            ? `<textarea name="${f.name}" style="width:100%;padding:0.5rem;min-height:80px;">${data[f.name] || ''}</textarea>`
+                            : f.type === 'select'
+                            ? `<select name="${f.name}" style="width:100%;padding:0.5rem;">
+                                ${f.options.map(o => `<option value="${o}" ${data[f.name] === o ? 'selected' : ''}>${o}</option>`).join('')}
+                               </select>`
+                            : f.type === 'checkbox'
+                            ? `<input type="checkbox" name="${f.name}" ${data[f.name] ? 'checked' : ''}>`
+                            : `<input type="${f.type}" name="${f.name}" value="${data[f.name] || ''}" ${f.required ? 'required' : ''} style="width:100%;padding:0.5rem;">`
+                        }
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('createModal').style.display = 'flex';
+        }
+
+        function generateCustomerFormWithData(data) {
+            return `
+                <div class="form-group">
+                    <label>Firma *</label>
+                    <input type="text" name="company_name" value="${data.company || ''}" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Anrede</label>
+                        <select name="salutation" style="width:100%;padding:0.5rem;">
+                            <option value="" ${!data.salutation ? 'selected' : ''}>---</option>
+                            <option value="Frau" ${data.salutation === 'Frau' ? 'selected' : ''}>Frau</option>
+                            <option value="Herr" ${data.salutation === 'Herr' ? 'selected' : ''}>Herr</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Vorname</label>
+                        <input type="text" name="first_name" value="${data.first_name || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Nachname</label>
+                        <input type="text" name="last_name" value="${data.last_name || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="contact_email" value="${data.email || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="text" name="contact_phone" value="${data.phone || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>VAT/USt-ID</label>
+                    <input type="text" name="vat_number" value="${data.vat_number || ''}" style="width:100%;padding:0.5rem;">
+                </div>
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">Rechnungsadresse</legend>
+                    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Straße</label>
+                            <input type="text" name="street" value="${data.street || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nr.</label>
+                            <input type="text" name="street_number" value="${data.street_number || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>PLZ</label>
+                            <input type="text" name="postal_code" value="${data.postal_code || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Ort</label>
+                            <input type="text" name="city" value="${data.city || ''}" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="form-group">
+                    <label>Konditionen</label>
+                    <textarea name="conditions" style="width:100%;padding:0.5rem;min-height:60px;">${data.conditions || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Kommentar</label>
+                    <textarea name="comment" style="width:100%;padding:0.5rem;min-height:80px;">${data.comment || ''}</textarea>
+                </div>
+            `;
+        }
+
+        function generateTrainerFormWithData(data) {
+            const specs = data.specializations || {selected: [], custom: []};
+            return `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Vorname *</label>
+                        <input type="text" name="first_name" value="${data.first_name || ''}" required style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Nachname *</label>
+                        <input type="text" name="last_name" value="${data.last_name || ''}" required style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" value="${data.email || ''}" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="text" name="phone" value="${data.phone || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>VAT/USt-ID</label>
+                        <input type="text" name="vat_number" value="${data.vat_number || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Adresse</label>
+                    <textarea name="address" style="width:100%;padding:0.5rem;min-height:60px;">${data.address || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>LinkedIn URL</label>
+                    <input type="url" name="linkedin_url" value="${data.linkedin_url || ''}" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Webseite</label>
+                    <input type="url" name="website" value="${data.website || ''}" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Spezialisierungen</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0.5rem;">
+                        ${TRAINER_SPECIALIZATIONS.map(spec => `
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal;">
+                                <input type="checkbox" name="spec_selected" value="${spec}" ${specs.selected && specs.selected.includes(spec) ? 'checked' : ''}>
+                                ${spec}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div id="customSpecsContainer">
+                        ${(specs.custom || []).map(c => `
+                            <div class="custom-spec-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <input type="text" name="spec_custom" value="${c}" style="flex:1;padding:0.5rem;">
+                            </div>
+                        `).join('')}
+                        <div class="custom-spec-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="text" name="spec_custom" placeholder="Eigene Spezialisierung..." style="flex:1;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <button type="button" onclick="addCustomSpecField()" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">+ Weitere</button>
+                </div>
+                <div class="form-group">
+                    <label>Tagessatz (€)</label>
+                    <input type="number" name="default_day_rate" value="${data.default_day_rate || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Region</label>
+                    <input type="text" name="region" value="${data.region || ''}" style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Bio</label>
+                    <textarea name="bio" style="width:100%;padding:0.5rem;min-height:80px;">${data.bio || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Notizen</label>
+                    <textarea name="notes" style="width:100%;padding:0.5rem;min-height:60px;">${data.notes || ''}</textarea>
+                </div>
+            `;
+        }
+
         function closeModal() {
             document.getElementById('createModal').style.display = 'none';
         }
@@ -1032,7 +1350,27 @@
 
             const endpoints = { training: 'trainings', customer: 'customers', trainer: 'trainers', brand: 'brands', user: 'auth/register' };
 
-            if (currentFormType === 'trainer') {
+            if (currentFormType === 'training') {
+                // Handle training form with all extended fields
+                data = {
+                    title: formData.get('title'),
+                    brand_id: formData.get('brand_id') ? parseInt(formData.get('brand_id')) : null,
+                    customer_id: formData.get('customer_id') ? parseInt(formData.get('customer_id')) : null,
+                    trainer_id: formData.get('trainer_id') ? parseInt(formData.get('trainer_id')) : null,
+                    status: formData.get('status'),
+                    start_date: formData.get('start_date') || null,
+                    end_date: formData.get('end_date') || null,
+                    duration_days: formData.get('duration_days') ? parseInt(formData.get('duration_days')) : 1,
+                    training_type: formData.get('training_type'),
+                    training_format: formData.get('training_format'),
+                    location: formData.get('location'),
+                    tagessatz: formData.get('tagessatz') ? parseFloat(formData.get('tagessatz')) : null,
+                    price_external: formData.get('price_external') ? parseFloat(formData.get('price_external')) : null,
+                    price_internal: formData.get('price_internal') ? parseFloat(formData.get('price_internal')) : null,
+                    max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : null,
+                    internal_notes: formData.get('internal_notes')
+                };
+            } else if (currentFormType === 'trainer') {
                 // Handle trainer form specially
                 data = {
                     first_name: formData.get('first_name'),
@@ -1082,22 +1420,32 @@
                 data = Object.fromEntries(formData);
             }
 
-            const res = await apiCall(`/${endpoints[currentFormType]}`, {
-                method: 'POST',
+            // Determine if this is create or update
+            const isUpdate = editingId !== null;
+            let url = `/${endpoints[currentFormType]}`;
+            let method = 'POST';
+
+            if (isUpdate) {
+                url = `/${endpoints[currentFormType]}/${editingId}`;
+                method = 'PUT';
+            }
+
+            const res = await apiCall(url, {
+                method: method,
                 body: JSON.stringify(data)
             });
 
-            console.log('Create response status:', res.status);
+            console.log(`${isUpdate ? 'Update' : 'Create'} response status:`, res.status);
 
             if (!res.ok) {
                 const error = await res.json().catch(() => ({}));
-                console.error('Create error:', error);
+                console.error(`${isUpdate ? 'Update' : 'Create'} error:`, error);
                 alert(error.error || 'Fehler beim Speichern');
                 return;
             }
 
             const result = await res.json();
-            console.log('Created item:', result);
+            console.log(`${isUpdate ? 'Updated' : 'Created'} item:`, result);
 
             closeModal();
             // Special handling for users section name
