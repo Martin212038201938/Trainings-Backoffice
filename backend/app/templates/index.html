@@ -175,16 +175,34 @@
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Login-Daten</legend>
                     <div class="form-group">
-                        <label>E-Mail-Adresse (wird auch als Benutzername verwendet)</label>
+                        <label>E-Mail-Adresse * (wird auch als Benutzername verwendet)</label>
                         <input type="email" name="email" id="appEmail" required>
                     </div>
                     <div class="form-group">
-                        <label>Passwort</label>
+                        <label>Passwort *</label>
                         <input type="password" name="password" id="appPassword" required minlength="6">
                     </div>
                     <div class="form-group">
-                        <label>Passwort bestätigen</label>
+                        <label>Passwort bestätigen *</label>
                         <input type="password" name="password_confirm" id="appPasswordConfirm" required minlength="6">
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Persönliche Daten</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Vorname *</label>
+                            <input type="text" name="first_name" id="appFirstName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nachname *</label>
+                            <input type="text" name="last_name" id="appLastName" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon *</label>
+                        <input type="tel" name="phone" id="appPhone" required>
                     </div>
                 </fieldset>
 
@@ -203,21 +221,7 @@
             <p style="text-align: center; color: #666; margin-bottom: 1rem;">Schritt 2 von 2</p>
             <form id="applicationFormStep2">
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
-                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Persönliche Daten</legend>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>Vorname</label>
-                            <input type="text" name="first_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Nachname</label>
-                            <input type="text" name="last_name" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Telefon</label>
-                        <input type="tel" name="phone">
-                    </div>
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Adresse</legend>
                     <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label>Straße</label>
@@ -275,13 +279,16 @@
                 </fieldset>
 
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
-                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Meine bisherigen Trainings</legend>
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Meine Trainings die ich zusätzlich anbiete</legend>
                     <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
-                        Sie können bis zu 10 Trainings eintragen. Eine neue Zeile erscheint automatisch, sobald Sie ein Training vollständig ausgefüllt haben.
+                        Sie können, sofern gewünscht, bis zu 10 EIGENE Trainings eintragen, die Yellow-Boat und die Submarken in eigenem Namen anbieten werden. Sie erhalten bevorzugt den Zuschlag bei Anfragen. In Einzelfällen kann, davon abweichend, ein anderer Trainer beauftragt werden, sofern hierfür triftige Gründe vorliegen. Das stellt jedoch eine seltene Ausnahme dar. Der angeforderte Angebotspreis ist rein informativ und kann nicht zugesichert werden. Dies erfolgt in direkter Absprache sobald ein Lead für das entsprechende Training vorliegt.
                     </p>
                     <div id="trainingsContainer">
                         <!-- Training entries will be added here dynamically -->
                     </div>
+                    <button type="button" class="btn btn-success" id="addTrainingBtn" onclick="addNewTraining()" style="margin-top: 0.5rem;">
+                        + Training hinzufügen
+                    </button>
                 </fieldset>
 
                 <div style="display: flex; gap: 1rem;">
@@ -667,6 +674,19 @@
                                     <textarea name="notes" id="profile_notes" style="width:100%;padding:0.5rem;min-height:80px;"></textarea>
                                 </div>
 
+                                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                                    <legend style="font-weight: 600; padding: 0 0.5rem;">Meine Trainings die ich zusätzlich anbiete</legend>
+                                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
+                                        Sie können, sofern gewünscht, bis zu 10 EIGENE Trainings eintragen, die Yellow-Boat und die Submarken in eigenem Namen anbieten werden.
+                                    </p>
+                                    <div id="profileTrainingsContainer">
+                                        <!-- Profile training entries will be added here dynamically -->
+                                    </div>
+                                    <button type="button" class="btn btn-success" id="addProfileTrainingBtn" onclick="addProfileTrainingEntry()" style="margin-top: 0.5rem;">
+                                        + Training hinzufügen
+                                    </button>
+                                </fieldset>
+
                                 <button type="submit" class="btn btn-primary">Profil speichern</button>
                             </form>
                         </div>
@@ -876,6 +896,9 @@
             document.getElementById('appEmail').value = applicationStep1Data.email || '';
             document.getElementById('appPassword').value = applicationStep1Data.password || '';
             document.getElementById('appPasswordConfirm').value = applicationStep1Data.password || '';
+            document.getElementById('appFirstName').value = applicationStep1Data.first_name || '';
+            document.getElementById('appLastName').value = applicationStep1Data.last_name || '';
+            document.getElementById('appPhone').value = applicationStep1Data.phone || '';
         }
 
         function initTrainingsContainer() {
@@ -885,7 +908,10 @@
         }
 
         function addTrainingEntry() {
-            if (trainingsCount >= MAX_TRAININGS) return;
+            if (trainingsCount >= MAX_TRAININGS) {
+                alert('Maximal 10 Trainings können eingetragen werden.');
+                return;
+            }
 
             const container = document.getElementById('trainingsContainer');
             const index = trainingsCount;
@@ -895,24 +921,24 @@
                 <div class="training-entry" id="training-${index}" style="border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; background: #fafafa;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                         <strong style="color: var(--yb-hellblau);">Training ${index + 1}</strong>
-                        ${index > 0 ? `<button type="button" onclick="removeTrainingEntry(${index})" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;">&times;</button>` : ''}
+                        <button type="button" onclick="removeTrainingEntry(${index})" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;" title="Training löschen">&times;</button>
                     </div>
                     <div class="form-group">
                         <label>Titel</label>
-                        <input type="text" name="training_title_${index}" onchange="checkTrainingComplete(${index})">
+                        <input type="text" name="training_title_${index}">
                     </div>
                     <div class="form-group">
                         <label>Kurzbeschreibung</label>
-                        <textarea name="training_description_${index}" style="min-height: 60px;" onchange="checkTrainingComplete(${index})"></textarea>
+                        <textarea name="training_description_${index}" style="min-height: 60px;"></textarea>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label>Dauer</label>
-                            <input type="number" name="training_duration_${index}" min="1" onchange="checkTrainingComplete(${index})">
+                            <input type="number" name="training_duration_${index}" min="1" max="999" style="height: 38px;">
                         </div>
                         <div class="form-group">
                             <label>Einheit</label>
-                            <select name="training_duration_unit_${index}" onchange="checkTrainingComplete(${index})">
+                            <select name="training_duration_unit_${index}" style="height: 38px;">
                                 <option value="">Bitte wählen</option>
                                 <option value="Stunden">Stunden</option>
                                 <option value="Tage">Tage</option>
@@ -927,43 +953,65 @@
                     </div>
                     <div class="form-group">
                         <label>Zielgruppe</label>
-                        <input type="text" name="training_target_${index}" onchange="checkTrainingComplete(${index})">
+                        <input type="text" name="training_target_${index}">
                     </div>
                     <div class="form-group">
                         <label>Mein Angebotspreis netto komplett an Yellow-Boat (EUR)</label>
-                        <input type="number" name="training_price_${index}" step="0.01" min="0" onchange="checkTrainingComplete(${index})">
+                        <input type="number" name="training_price_${index}" step="0.01" min="0">
                         <small style="color: #666; display: block; margin-top: 0.25rem;">
                             Hinweis: Für die Abwicklung und Vermarktung kommt seitens Yellow-Boat ein Aufschlag zum Verkaufspreis vor Kunden.
                         </small>
                     </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="saveTrainingEntry(${index})" style="margin-top: 0.5rem;">
+                        Training speichern
+                    </button>
+                    <span id="training-saved-${index}" style="display: none; color: #28a745; margin-left: 0.5rem;">✓ Gespeichert</span>
                 </div>
             `;
 
             container.insertAdjacentHTML('beforeend', entryHtml);
+            updateAddTrainingButton();
         }
 
         function removeTrainingEntry(index) {
             const entry = document.getElementById(`training-${index}`);
             if (entry) {
                 entry.remove();
+                updateAddTrainingButton();
             }
         }
 
-        function checkTrainingComplete(index) {
+        function saveTrainingEntry(index) {
             const form = document.getElementById('applicationFormStep2');
             const title = form.querySelector(`[name="training_title_${index}"]`)?.value;
-            const description = form.querySelector(`[name="training_description_${index}"]`)?.value;
-            const duration = form.querySelector(`[name="training_duration_${index}"]`)?.value;
-            const durationUnit = form.querySelector(`[name="training_duration_unit_${index}"]`)?.value;
-            const target = form.querySelector(`[name="training_target_${index}"]`)?.value;
-            const price = form.querySelector(`[name="training_price_${index}"]`)?.value;
 
-            // Check if all required fields are filled
-            if (title && description && duration && durationUnit && target && price) {
-                // Check if we need to add a new entry (if this is the last one)
-                const lastIndex = trainingsCount - 1;
-                if (index === lastIndex && trainingsCount < MAX_TRAININGS) {
-                    addTrainingEntry();
+            if (!title) {
+                alert('Bitte geben Sie mindestens einen Titel ein.');
+                return;
+            }
+
+            // Show saved indicator
+            const savedIndicator = document.getElementById(`training-saved-${index}`);
+            if (savedIndicator) {
+                savedIndicator.style.display = 'inline';
+                setTimeout(() => {
+                    savedIndicator.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function addNewTraining() {
+            addTrainingEntry();
+        }
+
+        function updateAddTrainingButton() {
+            const btn = document.getElementById('addTrainingBtn');
+            const currentCount = document.querySelectorAll('.training-entry').length;
+            if (btn) {
+                if (currentCount >= MAX_TRAININGS) {
+                    btn.style.display = 'none';
+                } else {
+                    btn.style.display = 'inline-block';
                 }
             }
         }
@@ -1010,7 +1058,10 @@
             // Save step 1 data
             applicationStep1Data = {
                 email: formData.get('email'),
-                password: formData.get('password')
+                password: formData.get('password'),
+                first_name: formData.get('first_name'),
+                last_name: formData.get('last_name'),
+                phone: formData.get('phone')
             };
 
             // Go to step 2
@@ -1027,9 +1078,9 @@
             const data = {
                 email: applicationStep1Data.email,
                 password: applicationStep1Data.password,
-                first_name: formData.get('first_name'),
-                last_name: formData.get('last_name'),
-                phone: formData.get('phone'),
+                first_name: applicationStep1Data.first_name,
+                last_name: applicationStep1Data.last_name,
+                phone: applicationStep1Data.phone,
                 street: formData.get('street'),
                 house_number: formData.get('house_number'),
                 postal_code: formData.get('postal_code'),
@@ -1374,10 +1425,132 @@
                 `).join('');
                 document.getElementById('profile_custom_specs').value = specs.custom ? specs.custom.join(', ') : '';
 
+                // Load trainings
+                loadProfileTrainings(trainer.proposed_trainings || []);
+
             } catch (err) {
                 console.error('Error loading profile:', err);
                 alert('Fehler beim Laden des Profils');
             }
+        }
+
+        // Profile Trainings Functions
+        let profileTrainingsCount = 0;
+        const MAX_PROFILE_TRAININGS = 10;
+
+        function loadProfileTrainings(trainings) {
+            const container = document.getElementById('profileTrainingsContainer');
+            container.innerHTML = '';
+            profileTrainingsCount = 0;
+
+            if (trainings && trainings.length > 0) {
+                trainings.forEach((training, index) => {
+                    addProfileTrainingEntry(training);
+                });
+            }
+            updateAddProfileTrainingButton();
+        }
+
+        function addProfileTrainingEntry(existingData = null) {
+            if (profileTrainingsCount >= MAX_PROFILE_TRAININGS) {
+                alert('Maximal 10 Trainings können eingetragen werden.');
+                return;
+            }
+
+            const container = document.getElementById('profileTrainingsContainer');
+            const index = profileTrainingsCount;
+            profileTrainingsCount++;
+
+            const entryHtml = `
+                <div class="profile-training-entry" id="profile-training-${index}" style="border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; background: #fafafa;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <strong style="color: var(--yb-hellblau);">Training ${index + 1}</strong>
+                        <button type="button" onclick="removeProfileTrainingEntry(${index})" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;" title="Training löschen">&times;</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" id="profile_training_title_${index}" value="${existingData?.title || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Kurzbeschreibung</label>
+                        <textarea id="profile_training_description_${index}" style="width:100%;padding:0.5rem;min-height:60px;">${existingData?.description || ''}</textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Dauer</label>
+                            <input type="number" id="profile_training_duration_${index}" min="1" max="999" value="${existingData?.duration || ''}" style="width:100%;padding:0.5rem;height:38px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Einheit</label>
+                            <select id="profile_training_duration_unit_${index}" style="width:100%;padding:0.5rem;height:38px;">
+                                <option value="">Bitte wählen</option>
+                                <option value="Stunden" ${existingData?.duration_unit === 'Stunden' ? 'selected' : ''}>Stunden</option>
+                                <option value="Tage" ${existingData?.duration_unit === 'Tage' ? 'selected' : ''}>Tage</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="profile_training_materials_${index}" ${existingData?.materials_available ? 'checked' : ''} style="width: auto;">
+                            Trainingsmaterialien vorhanden
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Zielgruppe</label>
+                        <input type="text" id="profile_training_target_${index}" value="${existingData?.target_audience || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Mein Angebotspreis netto komplett an Yellow-Boat (EUR)</label>
+                        <input type="number" id="profile_training_price_${index}" step="0.01" min="0" value="${existingData?.price || ''}" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', entryHtml);
+            updateAddProfileTrainingButton();
+        }
+
+        function removeProfileTrainingEntry(index) {
+            const entry = document.getElementById(`profile-training-${index}`);
+            if (entry) {
+                entry.remove();
+                updateAddProfileTrainingButton();
+            }
+        }
+
+        function updateAddProfileTrainingButton() {
+            const btn = document.getElementById('addProfileTrainingBtn');
+            const currentCount = document.querySelectorAll('.profile-training-entry').length;
+            if (btn) {
+                if (currentCount >= MAX_PROFILE_TRAININGS) {
+                    btn.style.display = 'none';
+                } else {
+                    btn.style.display = 'inline-block';
+                }
+            }
+        }
+
+        function collectProfileTrainings() {
+            const trainings = [];
+            const entries = document.querySelectorAll('.profile-training-entry');
+
+            entries.forEach(entry => {
+                const index = entry.id.replace('profile-training-', '');
+                const title = document.getElementById(`profile_training_title_${index}`)?.value;
+                if (!title) return; // Skip empty entries
+
+                trainings.push({
+                    title: title,
+                    description: document.getElementById(`profile_training_description_${index}`)?.value || '',
+                    duration: parseInt(document.getElementById(`profile_training_duration_${index}`)?.value) || 0,
+                    duration_unit: document.getElementById(`profile_training_duration_unit_${index}`)?.value || '',
+                    materials_available: document.getElementById(`profile_training_materials_${index}`)?.checked || false,
+                    target_audience: document.getElementById(`profile_training_target_${index}`)?.value || '',
+                    price: parseFloat(document.getElementById(`profile_training_price_${index}`)?.value) || 0
+                });
+            });
+
+            return trainings;
         }
 
         function previewProfilePhoto(input) {
@@ -1429,7 +1602,8 @@
                         specializations: {
                             selected: selectedSpecs,
                             custom: customSpecs
-                        }
+                        },
+                        proposed_trainings: collectProfileTrainings()
                     };
 
                     try {

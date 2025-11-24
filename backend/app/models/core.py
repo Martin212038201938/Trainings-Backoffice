@@ -167,6 +167,7 @@ class Trainer(Base, TimestampMixin):
     region = Column(String(100))
     additional_info = Column(Text)  # Weitere Informationen (formerly bio)
     notes = Column(Text)
+    proposed_trainings = Column(Text)  # JSON: [{title, description, duration, duration_unit, materials_available, target_audience, price}]
 
     user = relationship("User", backref="trainer")
     brands = relationship("Brand", secondary=trainer_brands, backref="trainers")

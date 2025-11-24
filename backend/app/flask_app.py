@@ -1,6 +1,7 @@
 """Flask application - WSGI compatible version of Trainings Backoffice."""
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -719,7 +720,8 @@ def trainer_to_dict(t):
         "specializations": getattr(t, 'specializations', None) or {"selected": [], "custom": []},
         "additional_info": getattr(t, 'additional_info', None),
         "notes": getattr(t, 'notes', None),
-        "region": getattr(t, 'region', None)
+        "region": getattr(t, 'region', None),
+        "proposed_trainings": json.loads(t.proposed_trainings) if getattr(t, 'proposed_trainings', None) else []
     }
 
 
@@ -1491,6 +1493,10 @@ def update_trainer_profile():
         if key in data:
             setattr(trainer, key, data[key])
 
+    # Handle proposed_trainings separately (needs JSON serialization)
+    if 'proposed_trainings' in data:
+        trainer.proposed_trainings = json.dumps(data['proposed_trainings']) if data['proposed_trainings'] else None
+
     db.commit()
     db.refresh(trainer)
 
@@ -2061,7 +2067,6 @@ def submit_trainer_application():
         return jsonify({"error": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"}), 400
 
     # Create application
-    import json
     proposed_trainings = data.get('proposed_trainings', [])
 
     application = TrainerRegistration(
