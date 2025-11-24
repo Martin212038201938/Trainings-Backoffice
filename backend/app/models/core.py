@@ -279,3 +279,34 @@ class Location(Base, TimestampMixin):
     parking = Column(Text)  # Parken (Freitext)
     directions = Column(Text)  # Anreise (Freitext)
     participant_info = Column(Text)  # Informationen für TN (Freitext)
+
+
+MESSAGE_TYPES = ("error_report", "message")
+MESSAGE_STATUSES = ("open", "solved", "not_solvable")
+
+
+class Message(Base, TimestampMixin):
+    """Messages and error reports between users."""
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # NULL = to all admins
+    parent_id = Column(Integer, ForeignKey("messages.id"), nullable=True)  # For replies
+
+    message_type = Column(String(50), default="message")  # error_report or message
+    subject = Column(String(255))
+    content = Column(Text, nullable=False)
+
+    # Error report specific fields
+    page_url = Column(String(500))  # Page where error occurred
+    error_details = Column(Text)  # Automatic error info
+    status = Column(String(50), default="open")  # open, solved, not_solvable
+
+    # Read status
+    is_read = Column(Boolean, default=False)
+    read_at = Column(DateTime)
+
+    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    recipient = relationship("User", foreign_keys=[recipient_id], backref="received_messages")
+    parent = relationship("Message", remote_side=[id], backref="replies")

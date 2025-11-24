@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location
+from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message
 from .core.security import create_access_token, get_password_hash, verify_password
 
 # Create tables
@@ -1429,6 +1429,212 @@ def withdraw_application(application_id):
     db.commit()
 
     return jsonify({"status": "withdrawn"})
+
+
+# ============== Messages Routes ==============
+
+def message_to_dict(m):
+    """Convert message model to dictionary."""
+    return {
+        "id": m.id,
+        "sender_id": m.sender_id,
+        "sender_name": m.sender.username if m.sender else None,
+        "recipient_id": m.recipient_id,
+        "recipient_name": m.recipient.username if m.recipient else "Alle Admins",
+        "parent_id": m.parent_id,
+        "message_type": m.message_type,
+        "subject": m.subject,
+        "content": m.content,
+        "page_url": m.page_url,
+        "error_details": m.error_details,
+        "status": m.status,
+        "is_read": m.is_read,
+        "read_at": m.read_at.isoformat() if m.read_at else None,
+        "created_at": m.created_at.isoformat() if m.created_at else None
+    }
+
+
+@app.route('/messages')
+@token_required
+def list_messages():
+    """Get messages for current user."""
+    db = get_db()
+    user = g.current_user
+
+    # Get messages where user is recipient or sender
+    # For admins, also include messages sent to all admins (recipient_id = NULL)
+    if user.role == 'admin':
+        messages = db.query(Message).filter(
+            (Message.recipient_id == user.id) |
+            (Message.sender_id == user.id) |
+            ((Message.recipient_id == None) & (Message.message_type == 'error_report'))
+        ).order_by(Message.created_at.desc()).all()
+    else:
+        messages = db.query(Message).filter(
+            (Message.recipient_id == user.id) |
+            (Message.sender_id == user.id)
+        ).order_by(Message.created_at.desc()).all()
+
+    return jsonify([message_to_dict(m) for m in messages])
+
+
+@app.route('/messages/unread-count')
+@token_required
+def get_unread_count():
+    """Get count of unread messages for current user."""
+    db = get_db()
+    user = g.current_user
+
+    if user.role == 'admin':
+        count = db.query(Message).filter(
+            ((Message.recipient_id == user.id) |
+             ((Message.recipient_id == None) & (Message.message_type == 'error_report'))) &
+            (Message.is_read == False) &
+            (Message.sender_id != user.id)
+        ).count()
+    else:
+        count = db.query(Message).filter(
+            (Message.recipient_id == user.id) &
+            (Message.is_read == False)
+        ).count()
+
+    return jsonify({"unread_count": count})
+
+
+@app.route('/messages', methods=['POST'])
+@token_required
+def create_message():
+    """Create a new message or error report."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON'}), 400
+
+    db = get_db()
+
+    message = Message(
+        sender_id=g.current_user.id,
+        recipient_id=data.get('recipient_id'),  # NULL for error reports to all admins
+        parent_id=data.get('parent_id'),
+        message_type=data.get('message_type', 'message'),
+        subject=data.get('subject'),
+        content=data.get('content'),
+        page_url=data.get('page_url'),
+        error_details=data.get('error_details'),
+        status='open' if data.get('message_type') == 'error_report' else None
+    )
+
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return jsonify(message_to_dict(message)), 201
+
+
+@app.route('/messages/<int:message_id>')
+@token_required
+def get_message(message_id):
+    """Get a specific message and mark as read."""
+    db = get_db()
+    message = db.query(Message).filter(Message.id == message_id).first()
+
+    if not message:
+        return jsonify({'error': 'Message not found'}), 404
+
+    # Check access
+    user = g.current_user
+    has_access = (
+        message.sender_id == user.id or
+        message.recipient_id == user.id or
+        (user.role == 'admin' and message.recipient_id is None)
+    )
+
+    if not has_access:
+        return jsonify({'error': 'Access denied'}), 403
+
+    # Mark as read if recipient
+    if message.recipient_id == user.id or (user.role == 'admin' and message.recipient_id is None):
+        if not message.is_read and message.sender_id != user.id:
+            message.is_read = True
+            message.read_at = datetime.utcnow()
+            db.commit()
+
+    return jsonify(message_to_dict(message))
+
+
+@app.route('/messages/<int:message_id>', methods=['PUT'])
+@token_required
+def update_message(message_id):
+    """Update message status (admin only for error reports)."""
+    db = get_db()
+    message = db.query(Message).filter(Message.id == message_id).first()
+
+    if not message:
+        return jsonify({'error': 'Message not found'}), 404
+
+    data = request.get_json()
+
+    # Only admins can update error report status
+    if 'status' in data:
+        if g.current_user.role != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        message.status = data['status']
+
+    db.commit()
+    db.refresh(message)
+
+    return jsonify(message_to_dict(message))
+
+
+@app.route('/messages/<int:message_id>', methods=['DELETE'])
+@token_required
+def delete_message(message_id):
+    """Delete a message."""
+    db = get_db()
+    message = db.query(Message).filter(Message.id == message_id).first()
+
+    if not message:
+        return jsonify({'error': 'Message not found'}), 404
+
+    # Check access - only sender or recipient can delete
+    user = g.current_user
+    if message.sender_id != user.id and message.recipient_id != user.id:
+        if not (user.role == 'admin' and message.recipient_id is None):
+            return jsonify({'error': 'Access denied'}), 403
+
+    db.delete(message)
+    db.commit()
+
+    return jsonify({"status": "deleted"})
+
+
+@app.route('/users/list')
+@token_required
+def list_users_for_messaging():
+    """Get list of users for messaging (admins and trainers can message each other)."""
+    db = get_db()
+    user = g.current_user
+
+    if user.role == 'admin':
+        # Admins can message trainers and other admins
+        users = db.query(User).filter(
+            User.id != user.id,
+            User.is_active == True,
+            User.role.in_(['admin', 'trainer'])
+        ).all()
+    elif user.role == 'trainer':
+        # Trainers can only message admins
+        users = db.query(User).filter(
+            User.role == 'admin',
+            User.is_active == True
+        ).all()
+    else:
+        users = []
+
+    return jsonify([{
+        "id": u.id,
+        "username": u.username,
+        "role": u.role
+    } for u in users])
 
 
 # WSGI application

@@ -73,6 +73,74 @@
         /* Additional Yellow-Boat styling */
         h2 { color: var(--yb-hellblau); }
         .badge { background: var(--yb-hellblau) !important; }
+
+        /* Notification Bell and Messages */
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: white;
+            padding: 0.5rem;
+        }
+        .notification-bell:hover {
+            color: var(--yb-gelb);
+        }
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .btn-error-report {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            font-size: 0.85rem;
+        }
+        .btn-error-report:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .message-unread {
+            font-weight: bold;
+            background: #f0f7ff;
+        }
+        .message-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .message-item:hover {
+            background: #f5f5f5;
+        }
+        .message-item:last-child {
+            border-bottom: none;
+        }
+        .message-meta {
+            font-size: 0.85rem;
+            color: var(--yb-grau);
+            margin-top: 0.5rem;
+        }
+        .message-status {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+        .status-open { background: #ffc107; color: #333; }
+        .status-solved { background: #28a745; color: white; }
+        .status-not_solvable { background: #6c757d; color: white; }
     </style>
 </head>
 <body>
@@ -104,6 +172,11 @@
                 Yellow-Boat Academy
             </h1>
             <div class="user-info">
+                <button class="btn btn-error-report" onclick="showErrorReportModal()">⚠ Fehler melden</button>
+                <div class="notification-bell" onclick="showSection('messages')" title="Nachrichten">
+                    🔔
+                    <span class="notification-badge" id="unreadBadge" style="display:none;">0</span>
+                </div>
                 <span id="currentUser"></span>
                 <button class="btn btn-logout" onclick="logout()">Abmelden</button>
             </div>
@@ -117,6 +190,7 @@
                 <a href="#" onclick="showSection('trainers')" data-section="trainers">Trainer</a>
                 <a href="#" onclick="showSection('brands')" data-section="brands">Marken</a>
                 <a href="#" onclick="showSection('locations')" data-section="locations">Locations</a>
+                <a href="#" onclick="showSection('messages')" data-section="messages">Nachrichten</a>
                 <div id="adminNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
                     <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
@@ -424,6 +498,21 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Messages / Nachrichten -->
+                <div id="section-messages" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Nachrichten
+                            <button class="btn btn-sm btn-success" onclick="showNewMessageModal()">+ Neue Nachricht</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="messagesList">
+                                <p style="color: #6c757d;">Laden...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
@@ -438,6 +527,96 @@
             <form id="createForm">
                 <div id="modalFields"></div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Speichern</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Error Report Modal -->
+    <div class="modal" id="errorReportModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Fehler melden</h3>
+                <span class="close" onclick="closeErrorReportModal()">&times;</span>
+            </div>
+            <form id="errorReportForm">
+                <div class="form-group">
+                    <label>Betreff</label>
+                    <input type="text" name="subject" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Beschreibung des Problems</label>
+                    <textarea name="content" required style="width:100%;padding:0.5rem;min-height:150px;" placeholder="Beschreiben Sie das Problem so genau wie möglich..."></textarea>
+                </div>
+                <input type="hidden" name="page_url" id="errorPageUrl">
+                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Fehler melden</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Message View Modal -->
+    <div class="modal" id="messageViewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="messageViewTitle">Nachricht</h3>
+                <span class="close" onclick="closeMessageViewModal()">&times;</span>
+            </div>
+            <div id="messageViewContent">
+                <div class="message-detail">
+                    <p><strong>Von:</strong> <span id="messageFrom"></span></p>
+                    <p><strong>An:</strong> <span id="messageTo"></span></p>
+                    <p><strong>Datum:</strong> <span id="messageDate"></span></p>
+                    <p id="messageStatusRow" style="display:none;"><strong>Status:</strong> <span id="messageStatusDisplay"></span></p>
+                </div>
+                <hr style="margin: 1rem 0;">
+                <div id="messageBody" style="white-space: pre-wrap; margin-bottom: 1rem;"></div>
+
+                <!-- Admin status controls for error reports -->
+                <div id="adminStatusControls" style="display:none; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+                    <label><strong>Status ändern:</strong></label>
+                    <select id="messageStatusSelect" style="margin-left: 0.5rem; padding: 0.3rem;">
+                        <option value="open">Offen</option>
+                        <option value="solved">Gelöst</option>
+                        <option value="not_solvable">Nicht lösbar</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="updateMessageStatus()" style="margin-left: 0.5rem;">Speichern</button>
+                </div>
+
+                <!-- Reply form -->
+                <div id="replySection" style="margin-top: 1rem;">
+                    <h4>Antworten</h4>
+                    <textarea id="replyContent" style="width:100%;padding:0.5rem;min-height:100px;" placeholder="Ihre Antwort..."></textarea>
+                    <button class="btn btn-primary" onclick="sendReply()" style="margin-top: 0.5rem;">Antwort senden</button>
+                </div>
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn btn-danger btn-sm" onclick="deleteCurrentMessage()">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Message Modal -->
+    <div class="modal" id="newMessageModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Neue Nachricht</h3>
+                <span class="close" onclick="closeNewMessageModal()">&times;</span>
+            </div>
+            <form id="newMessageForm">
+                <div class="form-group">
+                    <label>Empfänger</label>
+                    <select name="recipient_id" id="messageRecipient" style="width:100%;padding:0.5rem;">
+                        <option value="">Laden...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Betreff</label>
+                    <input type="text" name="subject" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Nachricht</label>
+                    <textarea name="content" required style="width:100%;padding:0.5rem;min-height:150px;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Senden</button>
             </form>
         </div>
     </div>
@@ -510,10 +689,12 @@
                         if (brandsLink) brandsLink.textContent = 'Marken (Ansicht)';
                         // Start on trainer dashboard instead
                         showSection('trainer-dashboard');
+                        updateUnreadCount();
                         return;
                     }
 
                     loadDashboard();
+                    updateUnreadCount();
                 } else {
                     logout();
                 }
@@ -550,6 +731,7 @@
             else if (name === 'trainer-dashboard') loadTrainerDashboard();
             else if (name === 'my-profile') loadMyProfile();
             else if (name === 'open-trainings') loadOpenTrainings();
+            else if (name === 'messages') loadMessages();
         }
 
         async function loadTrainerDashboard() {
@@ -2161,6 +2343,360 @@
             const sectionName = currentFormType === 'user' ? 'users' : endpoints[currentFormType];
             console.log('Refreshing section:', sectionName);
             showSection(sectionName);
+        });
+
+        // ========== MESSAGING FUNCTIONS ==========
+
+        let currentMessageId = null;
+        let availableUsers = [];
+
+        async function updateUnreadCount() {
+            try {
+                const res = await apiCall('/messages/unread-count');
+                if (res.ok) {
+                    const data = await res.json();
+                    const badge = document.getElementById('unreadBadge');
+                    if (data.count > 0) {
+                        badge.textContent = data.count > 99 ? '99+' : data.count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error('Error updating unread count:', err);
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const res = await apiCall('/messages');
+                if (!res.ok) throw new Error('Failed to load messages');
+                const messages = await res.json();
+
+                const container = document.getElementById('messagesList');
+                if (messages.length === 0) {
+                    container.innerHTML = '<p style="color: #6c757d; text-align: center; padding: 2rem;">Keine Nachrichten vorhanden.</p>';
+                    return;
+                }
+
+                container.innerHTML = messages.map(m => {
+                    const isUnread = !m.is_read;
+                    const statusBadge = m.message_type === 'error_report'
+                        ? `<span class="message-status status-${m.status}">${getStatusLabel(m.status)}</span>`
+                        : '';
+                    const typeIcon = m.message_type === 'error_report' ? '⚠️' : '✉️';
+
+                    return `
+                        <div class="message-item ${isUnread ? 'message-unread' : ''}" onclick="viewMessage(${m.id})">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <strong>${typeIcon} ${m.subject || '(Kein Betreff)'}</strong>
+                                    ${statusBadge}
+                                </div>
+                            </div>
+                            <div class="message-meta">
+                                Von: ${m.sender_name} | ${new Date(m.created_at).toLocaleString('de-DE')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error('Error loading messages:', err);
+                document.getElementById('messagesList').innerHTML =
+                    '<p style="color: #dc3545; text-align: center;">Fehler beim Laden der Nachrichten.</p>';
+            }
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'open': 'Offen',
+                'solved': 'Gelöst',
+                'not_solvable': 'Nicht lösbar'
+            };
+            return labels[status] || status;
+        }
+
+        async function viewMessage(id) {
+            try {
+                const res = await apiCall(`/messages/${id}`);
+                if (!res.ok) throw new Error('Failed to load message');
+                const message = await res.json();
+
+                currentMessageId = id;
+
+                document.getElementById('messageViewTitle').textContent = message.subject || 'Nachricht';
+                document.getElementById('messageFrom').textContent = message.sender_name;
+                document.getElementById('messageTo').textContent = message.recipient_name || 'Alle Admins';
+                document.getElementById('messageDate').textContent = new Date(message.created_at).toLocaleString('de-DE');
+                document.getElementById('messageBody').textContent = message.content;
+
+                // Show status for error reports
+                if (message.message_type === 'error_report') {
+                    document.getElementById('messageStatusRow').style.display = 'block';
+                    document.getElementById('messageStatusDisplay').innerHTML =
+                        `<span class="message-status status-${message.status}">${getStatusLabel(message.status)}</span>`;
+
+                    // Show admin controls for error reports
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('adminStatusControls').style.display = 'block';
+                        document.getElementById('messageStatusSelect').value = message.status;
+                    } else {
+                        document.getElementById('adminStatusControls').style.display = 'none';
+                    }
+
+                    // Show page URL if available
+                    if (message.page_url) {
+                        document.getElementById('messageBody').textContent =
+                            `Seite: ${message.page_url}\n\n${message.content}`;
+                    }
+                } else {
+                    document.getElementById('messageStatusRow').style.display = 'none';
+                    document.getElementById('adminStatusControls').style.display = 'none';
+                }
+
+                document.getElementById('replyContent').value = '';
+                document.getElementById('messageViewModal').style.display = 'flex';
+
+                // Update unread count and refresh list
+                updateUnreadCount();
+                loadMessages();
+
+            } catch (err) {
+                console.error('Error viewing message:', err);
+                alert('Fehler beim Laden der Nachricht');
+            }
+        }
+
+        async function updateMessageStatus() {
+            if (!currentMessageId) return;
+
+            const status = document.getElementById('messageStatusSelect').value;
+            try {
+                const res = await fetch(`${API_URL}/messages/${currentMessageId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status })
+                });
+
+                if (res.ok) {
+                    alert('Status aktualisiert');
+                    document.getElementById('messageStatusDisplay').innerHTML =
+                        `<span class="message-status status-${status}">${getStatusLabel(status)}</span>`;
+                    loadMessages();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Fehler beim Aktualisieren');
+                }
+            } catch (err) {
+                console.error('Error updating status:', err);
+                alert('Fehler beim Aktualisieren');
+            }
+        }
+
+        async function sendReply() {
+            if (!currentMessageId) return;
+
+            const content = document.getElementById('replyContent').value.trim();
+            if (!content) {
+                alert('Bitte geben Sie eine Antwort ein');
+                return;
+            }
+
+            try {
+                // Get the original message to reply to the sender
+                const res = await apiCall(`/messages/${currentMessageId}`);
+                const originalMessage = await res.json();
+
+                const replyRes = await fetch(`${API_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        recipient_id: originalMessage.sender_id,
+                        subject: `Re: ${originalMessage.subject || '(Kein Betreff)'}`,
+                        content: content,
+                        parent_id: currentMessageId,
+                        message_type: 'message'
+                    })
+                });
+
+                if (replyRes.ok) {
+                    alert('Antwort gesendet');
+                    document.getElementById('replyContent').value = '';
+                    closeMessageViewModal();
+                    loadMessages();
+                } else {
+                    const error = await replyRes.json();
+                    alert(error.error || 'Fehler beim Senden');
+                }
+            } catch (err) {
+                console.error('Error sending reply:', err);
+                alert('Fehler beim Senden der Antwort');
+            }
+        }
+
+        async function deleteCurrentMessage() {
+            if (!currentMessageId) return;
+
+            if (!confirm('Möchten Sie diese Nachricht wirklich löschen?')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/messages/${currentMessageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (res.ok) {
+                    closeMessageViewModal();
+                    loadMessages();
+                    updateUnreadCount();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Fehler beim Löschen');
+                }
+            } catch (err) {
+                console.error('Error deleting message:', err);
+                alert('Fehler beim Löschen');
+            }
+        }
+
+        function closeMessageViewModal() {
+            document.getElementById('messageViewModal').style.display = 'none';
+            currentMessageId = null;
+        }
+
+        // Error Report Modal
+        function showErrorReportModal() {
+            document.getElementById('errorPageUrl').value = window.location.href;
+            document.getElementById('errorReportForm').reset();
+            document.getElementById('errorReportModal').style.display = 'flex';
+        }
+
+        function closeErrorReportModal() {
+            document.getElementById('errorReportModal').style.display = 'none';
+        }
+
+        document.getElementById('errorReportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const data = {
+                message_type: 'error_report',
+                subject: formData.get('subject'),
+                content: formData.get('content'),
+                page_url: formData.get('page_url'),
+                recipient_id: null  // Send to all admins
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    alert('Fehlermeldung wurde gesendet. Vielen Dank!');
+                    closeErrorReportModal();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Fehler beim Senden');
+                }
+            } catch (err) {
+                console.error('Error sending error report:', err);
+                alert('Fehler beim Senden der Meldung');
+            }
+        });
+
+        // New Message Modal
+        async function showNewMessageModal() {
+            // Load available users
+            try {
+                const res = await apiCall('/users/list');
+                if (res.ok) {
+                    availableUsers = await res.json();
+                    const select = document.getElementById('messageRecipient');
+                    select.innerHTML = '<option value="">Bitte wählen...</option>';
+
+                    // Group by role
+                    const admins = availableUsers.filter(u => u.role === 'admin');
+                    const trainers = availableUsers.filter(u => u.role === 'trainer');
+
+                    if (admins.length > 0) {
+                        select.innerHTML += '<optgroup label="Admins">' +
+                            admins.map(u => `<option value="${u.id}">${u.username}</option>`).join('') +
+                            '</optgroup>';
+                    }
+                    if (trainers.length > 0) {
+                        select.innerHTML += '<optgroup label="Trainer">' +
+                            trainers.map(u => `<option value="${u.id}">${u.username}</option>`).join('') +
+                            '</optgroup>';
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading users:', err);
+            }
+
+            document.getElementById('newMessageForm').reset();
+            document.getElementById('newMessageModal').style.display = 'flex';
+        }
+
+        function closeNewMessageModal() {
+            document.getElementById('newMessageModal').style.display = 'none';
+        }
+
+        document.getElementById('newMessageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const recipientId = formData.get('recipient_id');
+
+            if (!recipientId) {
+                alert('Bitte wählen Sie einen Empfänger');
+                return;
+            }
+
+            const data = {
+                message_type: 'message',
+                recipient_id: parseInt(recipientId),
+                subject: formData.get('subject'),
+                content: formData.get('content')
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    alert('Nachricht gesendet');
+                    closeNewMessageModal();
+                    loadMessages();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Fehler beim Senden');
+                }
+            } catch (err) {
+                console.error('Error sending message:', err);
+                alert('Fehler beim Senden');
+            }
         });
     </script>
 </body>
