@@ -1380,17 +1380,23 @@
         }
 
         async function loadDashboard() {
-            const [trainings, customers, trainers, brands] = await Promise.all([
+            const [trainingsData, customersData, trainersData, brandsData] = await Promise.all([
                 apiCall('/trainings').then(r => r.json()),
                 apiCall('/customers').then(r => r.json()),
                 apiCall('/trainers').then(r => r.json()),
                 apiCall('/brands').then(r => r.json())
             ]);
 
-            document.getElementById('statTrainings').textContent = trainings.length;
-            document.getElementById('statCustomers').textContent = customers.length;
-            document.getElementById('statTrainers').textContent = trainers.length;
-            document.getElementById('statBrands').textContent = brands.length;
+            // Handle both paginated and non-paginated responses
+            const trainings = trainingsData.items || trainingsData;
+            const customers = customersData.items || customersData;
+            const trainers = trainersData.items || trainersData;
+            const brands = brandsData.items || brandsData;
+
+            document.getElementById('statTrainings').textContent = trainingsData.total || trainings.length;
+            document.getElementById('statCustomers').textContent = customersData.total || customers.length;
+            document.getElementById('statTrainers').textContent = trainersData.total || trainers.length;
+            document.getElementById('statBrands').textContent = brandsData.total || brands.length;
 
             const recent = trainings.slice(0, 5);
             document.getElementById('recentTrainings').innerHTML = recent.map(t => `
@@ -1410,7 +1416,8 @@
                     document.getElementById('trainingsTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
                     return;
                 }
-                const trainings = await res.json();
+                const data = await res.json();
+                const trainings = data.items || data;
                 document.getElementById('trainingsTable').innerHTML = trainings.map(t => `
                     <tr>
                         <td>${t.title || '-'}</td>
@@ -1436,7 +1443,8 @@
                     document.getElementById('customersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
                     return;
                 }
-                const customers = await res.json();
+                const data = await res.json();
+                const customers = data.items || data;
                 document.getElementById('customersTable').innerHTML = customers.map(c => `
                     <tr>
                         <td title="Tel: ${c.phone || '-'}\nAdresse: ${c.street || ''} ${c.street_number || ''}, ${c.postal_code || ''} ${c.city || ''}">${c.name || c.company || '-'}</td>
@@ -1462,7 +1470,8 @@
                     document.getElementById('trainersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
                     return;
                 }
-                const trainers = await res.json();
+                const data = await res.json();
+                const trainers = data.items || data;
                 document.getElementById('trainersTable').innerHTML = trainers.map(t => {
                     const specs = t.specializations || {selected: [], custom: []};
                     const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
@@ -1498,7 +1507,8 @@
                     document.getElementById('brandsTable').innerHTML = '<tr><td colspan="3">Fehler beim Laden</td></tr>';
                     return;
                 }
-                const brands = await res.json();
+                const data = await res.json();
+                const brands = data.items || data;
                 console.log('Loaded brands:', brands);
 
                 // Hide create button for trainers
@@ -1535,7 +1545,8 @@
                     document.getElementById('locationsTable').innerHTML = '<tr><td colspan="5">Fehler beim Laden</td></tr>';
                     return;
                 }
-                const locations = await res.json();
+                const data = await res.json();
+                const locations = data.items || data;
                 console.log('Loaded locations:', locations);
 
                 const cateringLabels = { yes: 'Ja', no: 'Nein', external: 'Extern' };

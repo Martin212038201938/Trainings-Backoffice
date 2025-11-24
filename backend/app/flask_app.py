@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .models import Brand, Customer, Trainer, Training, TrainingCatalogEntry, TrainingTask, User, Location, Message, TrainerRegistration
+from .models.core import ActivityLog
 from .models.core import validate_status_transition, validate_training_type, validate_training_format, TRAINING_STATUSES
 from .core.security import create_access_token, get_password_hash, verify_password
 
@@ -441,12 +442,23 @@ def logout():
 @app.route('/brands')
 @token_required
 def list_brands():
-    brands = get_db().query(Brand).all()
-    return jsonify([{
-        "id": b.id,
-        "name": b.name,
-        "description": b.description
-    } for b in brands])
+    skip = request.args.get('skip', 0, type=int)
+    limit = request.args.get('limit', 100, type=int)
+
+    db = get_db()
+    total = db.query(Brand).count()
+    brands = db.query(Brand).offset(skip).limit(limit).all()
+
+    return jsonify({
+        "items": [{
+            "id": b.id,
+            "name": b.name,
+            "description": b.description
+        } for b in brands],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    })
 
 
 @app.route('/brands', methods=['POST'])
@@ -566,8 +578,19 @@ def customer_to_dict(c):
 @app.route('/customers')
 @token_required
 def list_customers():
-    customers = get_db().query(Customer).all()
-    return jsonify([customer_to_dict(c) for c in customers])
+    skip = request.args.get('skip', 0, type=int)
+    limit = request.args.get('limit', 100, type=int)
+
+    db = get_db()
+    total = db.query(Customer).count()
+    customers = db.query(Customer).offset(skip).limit(limit).all()
+
+    return jsonify({
+        "items": [customer_to_dict(c) for c in customers],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    })
 
 
 @app.route('/customers', methods=['POST'])
@@ -687,8 +710,19 @@ def trainer_to_dict(t):
 @app.route('/trainers')
 @token_required
 def list_trainers():
-    trainers = get_db().query(Trainer).all()
-    return jsonify([trainer_to_dict(t) for t in trainers])
+    skip = request.args.get('skip', 0, type=int)
+    limit = request.args.get('limit', 100, type=int)
+
+    db = get_db()
+    total = db.query(Trainer).count()
+    trainers = db.query(Trainer).offset(skip).limit(limit).all()
+
+    return jsonify({
+        "items": [trainer_to_dict(t) for t in trainers],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    })
 
 
 @app.route('/trainers', methods=['POST'])
@@ -794,19 +828,75 @@ def upload_trainer_photo(trainer_id):
     if photo.filename == '':
         return jsonify({'error': 'No file selected'}), 400
 
-    # Save photo
     import uuid
     from werkzeug.utils import secure_filename
 
+    # Validate file type
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     filename = secure_filename(photo.filename)
-    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify({
+            'error': f'Ungültiger Dateityp: {ext}. Erlaubt: {", ".join(ALLOWED_EXTENSIONS)}'
+        }), 400
+
+    # Validate file size (max 5MB)
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    photo.seek(0, 2)  # Seek to end
+    file_size = photo.tell()
+    photo.seek(0)  # Seek back to start
+
+    if file_size > MAX_FILE_SIZE:
+        return jsonify({
+            'error': f'Datei zu groß: {file_size / 1024 / 1024:.1f}MB. Maximum: 5MB'
+        }), 400
+
+    # Generate new filename
     new_filename = f"trainer_{trainer_id}_{uuid.uuid4().hex[:8]}.{ext}"
 
     upload_dir = APP_DIR / 'static' / 'uploads' / 'trainers'
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     photo_path = upload_dir / new_filename
-    photo.save(str(photo_path))
+
+    # Try to optimize image if PIL is available
+    try:
+        from PIL import Image
+        import io
+
+        # Open and process image
+        img = Image.open(photo)
+
+        # Convert RGBA to RGB if necessary (for JPEG)
+        if img.mode == 'RGBA' and ext in ['jpg', 'jpeg']:
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[3])
+            img = background
+
+        # Resize if too large (max 800x800)
+        max_size = (800, 800)
+        if img.size[0] > max_size[0] or img.size[1] > max_size[1]:
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        # Save with optimization
+        if ext in ['jpg', 'jpeg']:
+            img.save(str(photo_path), 'JPEG', quality=85, optimize=True)
+        elif ext == 'png':
+            img.save(str(photo_path), 'PNG', optimize=True)
+        else:
+            img.save(str(photo_path))
+
+        logger.info(f"Optimized and saved trainer photo: {new_filename}")
+    except ImportError:
+        # PIL not available, save directly
+        photo.save(str(photo_path))
+        logger.info(f"Saved trainer photo without optimization (PIL not available): {new_filename}")
+    except Exception as e:
+        # If image processing fails, save directly
+        photo.seek(0)
+        photo.save(str(photo_path))
+        logger.warning(f"Image optimization failed, saved directly: {e}")
 
     trainer.photo_path = f"/static/uploads/trainers/{new_filename}"
     db.commit()
@@ -878,8 +968,19 @@ def training_to_dict(t):
 @app.route('/trainings')
 @token_required
 def list_trainings():
-    trainings = get_db().query(Training).all()
-    return jsonify([training_to_dict(t) for t in trainings])
+    skip = request.args.get('skip', 0, type=int)
+    limit = request.args.get('limit', 100, type=int)
+
+    db = get_db()
+    total = db.query(Training).count()
+    trainings = db.query(Training).offset(skip).limit(limit).all()
+
+    return jsonify({
+        "items": [training_to_dict(t) for t in trainings],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    })
 
 
 @app.route('/trainings', methods=['POST'])
@@ -987,6 +1088,10 @@ def update_training(training_id):
         if not is_valid:
             return jsonify({'error': error_msg}), 400
 
+    # Track status change for activity log
+    old_status = training.status
+    new_status = data.get('status', old_status)
+
     # Update simple fields
     for key in ['title', 'location', 'status', 'customer_id', 'trainer_id', 'brand_id',
                 'duration_days', 'duration_hours', 'duration_type', 'zeitraum',
@@ -1006,10 +1111,73 @@ def update_training(training_id):
     if 'end_date' in data:
         training.end_date = dt.fromisoformat(data['end_date']).date() if data['end_date'] else None
 
+    # Create activity log for status change
+    if old_status != new_status:
+        log = ActivityLog(
+            training_id=training_id,
+            message=f"Status geändert: {old_status} → {new_status}",
+            created_by=g.current_user.username
+        )
+        db.add(log)
+
     db.commit()
     db.refresh(training)
 
     return jsonify(training_to_dict(training))
+
+
+@app.route('/trainings/<int:training_id>/activity-logs')
+@token_required
+def get_training_activity_logs(training_id):
+    """Get activity logs for a training."""
+    db = get_db()
+
+    training = db.query(Training).filter(Training.id == training_id).first()
+    if not training:
+        return jsonify({'error': 'Training not found'}), 404
+
+    logs = db.query(ActivityLog).filter(
+        ActivityLog.training_id == training_id
+    ).order_by(ActivityLog.created_at.desc()).all()
+
+    return jsonify([{
+        "id": log.id,
+        "message": log.message,
+        "created_by": log.created_by,
+        "created_at": log.created_at.isoformat() if log.created_at else None
+    } for log in logs])
+
+
+@app.route('/trainings/<int:training_id>/activity-logs', methods=['POST'])
+@token_required
+def add_training_activity_log(training_id):
+    """Add an activity log entry to a training."""
+    db = get_db()
+
+    training = db.query(Training).filter(Training.id == training_id).first()
+    if not training:
+        return jsonify({'error': 'Training not found'}), 404
+
+    data = request.get_json()
+    if not data or not data.get('message'):
+        return jsonify({'error': 'Message required'}), 400
+
+    log = ActivityLog(
+        training_id=training_id,
+        message=data['message'],
+        created_by=g.current_user.username
+    )
+
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+
+    return jsonify({
+        "id": log.id,
+        "message": log.message,
+        "created_by": log.created_by,
+        "created_at": log.created_at.isoformat() if log.created_at else None
+    }), 201
 
 
 @app.route('/trainings/<int:training_id>', methods=['DELETE'])
@@ -1067,8 +1235,19 @@ def location_to_dict(loc):
 @app.route('/locations')
 @token_required
 def list_locations():
-    locations = get_db().query(Location).all()
-    return jsonify([location_to_dict(loc) for loc in locations])
+    skip = request.args.get('skip', 0, type=int)
+    limit = request.args.get('limit', 100, type=int)
+
+    db = get_db()
+    total = db.query(Location).count()
+    locations = db.query(Location).offset(skip).limit(limit).all()
+
+    return jsonify({
+        "items": [location_to_dict(loc) for loc in locations],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    })
 
 
 @app.route('/locations', methods=['POST'])
