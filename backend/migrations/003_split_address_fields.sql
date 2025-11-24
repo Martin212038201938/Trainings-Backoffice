@@ -8,6 +8,7 @@ ALTER TABLE trainers ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20);
 ALTER TABLE trainers ADD COLUMN IF NOT EXISTS city VARCHAR(100);
 ALTER TABLE trainers ADD COLUMN IF NOT EXISTS bank_account VARCHAR(100);
 ALTER TABLE trainers ADD COLUMN IF NOT EXISTS additional_info TEXT;
+ALTER TABLE trainers ADD COLUMN IF NOT EXISTS proposed_trainings TEXT;
 
 -- Add new address columns to trainer_registrations table
 ALTER TABLE trainer_registrations ADD COLUMN IF NOT EXISTS street VARCHAR(255);

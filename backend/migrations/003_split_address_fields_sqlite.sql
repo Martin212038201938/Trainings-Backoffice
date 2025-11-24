@@ -8,6 +8,7 @@ ALTER TABLE trainers ADD COLUMN postal_code VARCHAR(20);
 ALTER TABLE trainers ADD COLUMN city VARCHAR(100);
 ALTER TABLE trainers ADD COLUMN bank_account VARCHAR(100);
 ALTER TABLE trainers ADD COLUMN additional_info TEXT;
+ALTER TABLE trainers ADD COLUMN proposed_trainings TEXT;
 
 -- Add new columns to trainer_registrations table
 ALTER TABLE trainer_registrations ADD COLUMN street VARCHAR(255);
