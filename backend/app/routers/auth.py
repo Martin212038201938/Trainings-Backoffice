@@ -12,7 +12,11 @@ from ..config import settings
 from ..core.deps import get_current_active_user, get_db, require_admin
 from ..core.security import create_access_token, get_password_hash, verify_password
 from ..models.user import User
+from ..models.core import Trainer
 from ..schemas.auth import Token, UserCreate, UserResponse, UserUpdate
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -106,6 +110,14 @@ async def register(
     )
 
     db.add(db_user)
+    db.flush()  # Get the user ID before commit
+
+    # Auto-link to trainer if exists with same email
+    trainer = db.query(Trainer).filter(Trainer.email == user_data.email).first()
+    if trainer and trainer.user_id is None:
+        trainer.user_id = db_user.id
+        logger.info(f"Auto-linked user {db_user.id} to trainer {trainer.id} by email {user_data.email}")
+
     db.commit()
     db.refresh(db_user)
 

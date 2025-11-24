@@ -310,16 +310,30 @@ def register():
     )
 
     db.add(user)
+    db.flush()  # Get the user ID before commit
+
+    # Auto-link to trainer if exists with same email
+    trainer = db.query(Trainer).filter(Trainer.email == email).first()
+    trainer_info = None
+    if trainer and trainer.user_id is None:
+        trainer.user_id = user.id
+        trainer_info = {"trainer_id": trainer.id, "trainer_name": trainer.name}
+        logger.info(f"Auto-linked user {user.id} to trainer {trainer.id} by email {email}")
+
     db.commit()
     db.refresh(user)
 
-    return jsonify({
+    response = {
         "id": user.id,
         "username": user.username,
         "email": user.email,
         "role": user.role,
         "is_active": user.is_active
-    }), 201
+    }
+    if trainer_info:
+        response.update(trainer_info)
+
+    return jsonify(response), 201
 
 
 @app.route('/auth/me')
@@ -359,57 +373,6 @@ def list_users():
         })
 
     return jsonify(result)
-
-
-@app.route('/auth/users/<int:user_id>/link-trainer', methods=['POST'])
-@admin_required
-def link_user_to_trainer(user_id):
-    """Link a user account to a trainer profile."""
-    db = get_db()
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-
-    data = request.get_json() or {}
-    trainer_id = data.get('trainer_id')
-
-    if trainer_id:
-        trainer = db.query(Trainer).filter(Trainer.id == trainer_id).first()
-        if not trainer:
-            return jsonify({'error': 'Trainer not found'}), 404
-
-        # Check if trainer is already linked to another user
-        existing = db.query(Trainer).filter(
-            Trainer.user_id != None,
-            Trainer.user_id != user_id,
-            Trainer.id == trainer_id
-        ).first()
-        if existing:
-            return jsonify({'error': 'Trainer already linked to another user'}), 400
-
-        # Unlink any existing trainer from this user
-        old_trainer = db.query(Trainer).filter(Trainer.user_id == user_id).first()
-        if old_trainer:
-            old_trainer.user_id = None
-
-        # Link new trainer
-        trainer.user_id = user_id
-        db.commit()
-
-        return jsonify({
-            "message": "Trainer linked successfully",
-            "trainer_id": trainer.id,
-            "trainer_name": trainer.name
-        })
-    else:
-        # Unlink trainer
-        trainer = db.query(Trainer).filter(Trainer.user_id == user_id).first()
-        if trainer:
-            trainer.user_id = None
-            db.commit()
-
-        return jsonify({"message": "Trainer unlinked successfully"})
 
 
 @app.route('/auth/users/<int:user_id>', methods=['DELETE'])
@@ -724,6 +687,14 @@ def create_trainer():
         )
 
         db = get_db()
+
+        # Auto-link to user if exists with same email
+        if trainer.email:
+            user = db.query(User).filter(User.email == trainer.email).first()
+            if user and not db.query(Trainer).filter(Trainer.user_id == user.id).first():
+                trainer.user_id = user.id
+                logger.info(f"Auto-linked trainer to user {user.id} by email {trainer.email}")
+
         db.add(trainer)
         db.commit()
         db.refresh(trainer)
