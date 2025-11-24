@@ -1800,6 +1800,12 @@ def approve_trainer_application(app_id):
     db.flush()  # Get the user ID
 
     # Create trainer profile
+    # Convert specializations text to JSON format if provided
+    specs_json = None
+    if application.specializations:
+        specs_list = [s.strip() for s in application.specializations.split(',') if s.strip()]
+        specs_json = {"selected": [], "custom": specs_list}
+
     trainer = Trainer(
         user_id=user.id,
         first_name=application.first_name,
@@ -1813,9 +1819,8 @@ def approve_trainer_application(app_id):
         default_day_rate=application.default_day_rate,
         region=application.region,
         bio=application.bio,
-        specializations=application.specializations,
-        photo_url=application.photo_url,
-        is_active=True
+        specializations=specs_json,
+        photo_path=application.photo_url
     )
     db.add(trainer)
 
