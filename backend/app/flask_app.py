@@ -860,7 +860,10 @@ def training_to_dict(t):
         "internal_notes": getattr(t, 'internal_notes', None),
         "logistics_notes": getattr(t, 'logistics_notes', None),
         "communication_notes": getattr(t, 'communication_notes', None),
-        "finance_notes": getattr(t, 'finance_notes', None)
+        "finance_notes": getattr(t, 'finance_notes', None),
+        "location_booking": getattr(t, 'location_booking', None),
+        "catering_booking": getattr(t, 'catering_booking', None),
+        "price_per_participant": getattr(t, 'price_per_participant', None)
     }
 
 
@@ -903,7 +906,9 @@ def create_training():
         # Set additional fields if model supports them
         for field in ['duration_hours', 'duration_type', 'zeitraum', 'location_cost',
                       'location_by_customer', 'catering_cost', 'catering_by_customer',
-                      'provision', 'other_costs']:
+                      'provision', 'other_costs', 'location_booking', 'catering_booking',
+                      'price_per_participant', 'language', 'online_link', 'location_details',
+                      'logistics_notes', 'communication_notes', 'finance_notes']:
             if field in data and hasattr(training, field):
                 setattr(training, field, data[field])
 
@@ -946,7 +951,9 @@ def update_training(training_id):
                 'tagessatz', 'location_cost', 'location_by_customer',
                 'catering_cost', 'catering_by_customer', 'provision', 'other_costs',
                 'price_external', 'price_internal', 'internal_notes',
-                'logistics_notes', 'communication_notes', 'finance_notes']:
+                'logistics_notes', 'communication_notes', 'finance_notes',
+                'location_booking', 'catering_booking', 'price_per_participant',
+                'language', 'online_link', 'location_details']:
         if key in data and hasattr(training, key):
             setattr(training, key, data[key])
 

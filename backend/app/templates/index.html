@@ -896,17 +896,17 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>Startdatum</label>
-                        <input type="date" name="start_date" value="${data.start_date || ''}" style="width:100%;padding:0.5rem;">
+                        <input type="date" name="start_date" value="${data.start_date ? data.start_date.split('T')[0] : ''}" style="width:100%;padding:0.5rem;">
                     </div>
                     <div class="form-group">
                         <label>Enddatum</label>
-                        <input type="date" name="end_date" value="${data.end_date || ''}" style="width:100%;padding:0.5rem;">
+                        <input type="date" name="end_date" value="${data.end_date ? data.end_date.split('T')[0] : ''}" style="width:100%;padding:0.5rem;">
                     </div>
                     <div class="form-group">
                         <label>Dauer</label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="number" name="duration_value" value="${durationValue}" min="1" style="flex:1;padding:0.5rem;">
-                            <select name="duration_type" style="width:80px;padding:0.5rem;" onchange="updateDurationLabel(this)">
+                            <input type="number" name="duration_value" value="${durationValue}" min="1" style="flex:1;padding:0.5rem;" onchange="calculateInternalPrice()">
+                            <select name="duration_type" style="width:80px;padding:0.5rem;" onchange="calculateInternalPrice()">
                                 <option value="days" ${data.duration_type !== 'hours' ? 'selected' : ''}>Tage</option>
                                 <option value="hours" ${data.duration_type === 'hours' ? 'selected' : ''}>Std.</option>
                             </select>
@@ -933,6 +933,16 @@
                         </select>
                     </div>
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Location buchen</label>
+                        <input type="text" name="location_booking" value="${data.location_booking || ''}" placeholder="z.B. Hotel, Konferenzraum..." style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Catering buchen</label>
+                        <input type="text" name="catering_booking" value="${data.catering_booking || ''}" placeholder="z.B. Mittagessen, Getränke..." style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>Ort</label>
                     <input type="text" name="location" value="${data.location || ''}" style="width:100%;padding:0.5rem;">
@@ -947,23 +957,13 @@
                         </div>
                         <div class="form-group">
                             <label>Location-Kosten (€)</label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <input type="number" name="location_cost" id="location_cost" value="${data.location_cost || ''}" step="0.01" style="flex:1;padding:0.5rem;" onchange="calculateInternalPrice()">
-                                <label style="font-weight: normal; white-space: nowrap;">
-                                    <input type="checkbox" name="location_by_customer" ${data.location_by_customer ? 'checked' : ''} onchange="calculateInternalPrice()"> Kunde
-                                </label>
-                            </div>
+                            <input type="number" name="location_cost" id="location_cost" value="${data.location_cost || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculateInternalPrice()">
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label>Catering-Kosten (€)</label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <input type="number" name="catering_cost" id="catering_cost" value="${data.catering_cost || ''}" step="0.01" style="flex:1;padding:0.5rem;" onchange="calculateInternalPrice()">
-                                <label style="font-weight: normal; white-space: nowrap;">
-                                    <input type="checkbox" name="catering_by_customer" ${data.catering_by_customer ? 'checked' : ''} onchange="calculateInternalPrice()"> Kunde
-                                </label>
-                            </div>
+                            <input type="number" name="catering_cost" id="catering_cost" value="${data.catering_cost || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculateInternalPrice()">
                         </div>
                         <div class="form-group">
                             <label>Provision (€)</label>
@@ -974,21 +974,25 @@
                         <label>Sonstige Kosten (€)</label>
                         <input type="number" name="other_costs" id="other_costs" value="${data.other_costs || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculateInternalPrice()">
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ddd;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ddd;">
                         <div class="form-group">
                             <label><strong>Preis Intern (€)</strong> <small style="color: #666;">(berechnet)</small></label>
                             <input type="number" name="price_internal" id="price_internal" value="${data.price_internal || ''}" step="0.01" style="width:100%;padding:0.5rem;background:#f5f5f5;" readonly>
                         </div>
                         <div class="form-group">
                             <label><strong>Preis Extern (€)</strong></label>
-                            <input type="number" name="price_external" value="${data.price_external || ''}" step="0.01" style="width:100%;padding:0.5rem;">
+                            <input type="number" name="price_external" id="price_external" value="${data.price_external || ''}" step="0.01" style="width:100%;padding:0.5rem;" onchange="calculatePricePerParticipant()">
+                        </div>
+                        <div class="form-group">
+                            <label><strong>Preis/Teilnehmer (€)</strong></label>
+                            <input type="number" name="price_per_participant" id="price_per_participant" value="${data.price_per_participant || ''}" step="0.01" style="width:100%;padding:0.5rem;background:#f5f5f5;" readonly>
                         </div>
                     </div>
                 </fieldset>
 
                 <div class="form-group">
                     <label>Max. Teilnehmer</label>
-                    <input type="number" name="max_participants" value="${data.max_participants || ''}" style="width:100%;padding:0.5rem;">
+                    <input type="number" name="max_participants" id="max_participants" value="${data.max_participants || ''}" style="width:100%;padding:0.5rem;" onchange="calculatePricePerParticipant()">
                 </div>
                 <div class="form-group">
                     <label>Interne Notizen</label>
@@ -1000,9 +1004,7 @@
         function calculateInternalPrice() {
             const tagessatz = parseFloat(document.getElementById('tagessatz')?.value) || 0;
             const locationCost = parseFloat(document.getElementById('location_cost')?.value) || 0;
-            const locationByCustomer = document.querySelector('[name="location_by_customer"]')?.checked;
             const cateringCost = parseFloat(document.getElementById('catering_cost')?.value) || 0;
-            const cateringByCustomer = document.querySelector('[name="catering_by_customer"]')?.checked;
             const provision = parseFloat(document.getElementById('provision')?.value) || 0;
             const otherCosts = parseFloat(document.getElementById('other_costs')?.value) || 0;
 
@@ -1014,15 +1016,26 @@
             // Calculate trainer cost
             const trainerCost = tagessatz * days;
 
-            // Calculate total (exclude costs if customer pays)
-            let total = trainerCost;
-            if (!locationByCustomer) total += locationCost;
-            if (!cateringByCustomer) total += cateringCost;
-            total += provision + otherCosts;
+            // Calculate total
+            const total = trainerCost + locationCost + cateringCost + provision + otherCosts;
 
             const priceInternalField = document.getElementById('price_internal');
             if (priceInternalField) {
                 priceInternalField.value = total.toFixed(2);
+            }
+        }
+
+        function calculatePricePerParticipant() {
+            const priceExternal = parseFloat(document.getElementById('price_external')?.value) || 0;
+            const maxParticipants = parseInt(document.getElementById('max_participants')?.value) || 0;
+
+            const pricePerParticipantField = document.getElementById('price_per_participant');
+            if (pricePerParticipantField) {
+                if (maxParticipants > 0) {
+                    pricePerParticipantField.value = (priceExternal / maxParticipants).toFixed(2);
+                } else {
+                    pricePerParticipantField.value = '';
+                }
             }
         }
 
@@ -1486,16 +1499,19 @@
                     training_type: formData.get('training_type'),
                     training_format: formData.get('training_format'),
                     location: formData.get('location'),
+                    location_booking: formData.get('location_booking') || null,
+                    catering_booking: formData.get('catering_booking') || null,
                     tagessatz: formData.get('tagessatz') ? parseFloat(formData.get('tagessatz')) : null,
                     location_cost: formData.get('location_cost') ? parseFloat(formData.get('location_cost')) : null,
-                    location_by_customer: formData.get('location_by_customer') === 'on',
                     catering_cost: formData.get('catering_cost') ? parseFloat(formData.get('catering_cost')) : null,
-                    catering_by_customer: formData.get('catering_by_customer') === 'on',
                     provision: formData.get('provision') ? parseFloat(formData.get('provision')) : null,
                     other_costs: formData.get('other_costs') ? parseFloat(formData.get('other_costs')) : null,
                     price_external: formData.get('price_external') ? parseFloat(formData.get('price_external')) : null,
                     price_internal: formData.get('price_internal') ? parseFloat(formData.get('price_internal')) : null,
+                    price_per_participant: formData.get('price_per_participant') ? parseFloat(formData.get('price_per_participant')) : null,
                     max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : null,
+                    language: formData.get('language') || null,
+                    online_link: formData.get('online_link') || null,
                     internal_notes: formData.get('internal_notes')
                 };
             } else if (currentFormType === 'trainer') {
