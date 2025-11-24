@@ -1191,6 +1191,41 @@ def trainer_dashboard():
     })
 
 
+@app.route('/trainer/profile', methods=['PUT'])
+@token_required
+def update_trainer_profile():
+    """Update trainer's own profile."""
+    if g.current_user.role != 'trainer':
+        return jsonify({'error': 'Trainer access required'}), 403
+
+    db = get_db()
+
+    # Find trainer linked to this user
+    trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        trainer = db.query(Trainer).filter(Trainer.email == g.current_user.email).first()
+        if trainer:
+            trainer.user_id = g.current_user.id
+            db.commit()
+
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked to this account'}), 404
+
+    data = request.get_json()
+
+    # Update allowed fields (excluding customer feedback which trainers shouldn't edit)
+    for key in ['first_name', 'last_name', 'email', 'phone', 'address', 'vat_number',
+                'linkedin_url', 'website', 'default_day_rate', 'region', 'bio', 'notes',
+                'specializations']:
+        if key in data:
+            setattr(trainer, key, data[key])
+
+    db.commit()
+    db.refresh(trainer)
+
+    return jsonify(trainer_to_dict(trainer))
+
+
 @app.route('/trainer/open-trainings')
 @token_required
 def get_open_trainings():
@@ -1234,6 +1269,87 @@ def get_open_trainings():
         "status": t.status,
         "already_applied": t.id in my_application_training_ids
     } for t in open_trainings])
+
+
+@app.route('/trainer/my-trainings')
+@token_required
+def get_my_trainings():
+    """Get trainer's assigned trainings with full details (excluding costs)."""
+    if g.current_user.role != 'trainer':
+        return jsonify({'error': 'Trainer access required'}), 403
+
+    db = get_db()
+
+    trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        trainer = db.query(Trainer).filter(Trainer.email == g.current_user.email).first()
+        if trainer:
+            trainer.user_id = g.current_user.id
+            db.commit()
+
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked'}), 404
+
+    # Get trainer's assigned trainings
+    my_trainings = db.query(Training).filter(Training.trainer_id == trainer.id).all()
+
+    result = []
+    for t in my_trainings:
+        # Get location details if linked
+        location_info = None
+        if hasattr(t, 'location_id') and t.location_id:
+            loc = db.query(Location).filter(Location.id == t.location_id).first()
+            if loc:
+                # Include all location info EXCEPT costs
+                location_info = {
+                    "id": loc.id,
+                    "name": loc.name,
+                    "city": loc.city,
+                    "street": loc.street,
+                    "street_number": loc.street_number,
+                    "postal_code": loc.postal_code,
+                    "description": loc.description,
+                    "max_participants": loc.max_participants,
+                    "features": loc.features,
+                    "website_link": loc.website_link,
+                    "catering_available": loc.catering_available,
+                    "parking": loc.parking,
+                    "directions": loc.directions,
+                    "participant_info": loc.participant_info
+                    # Note: rental_cost excluded
+                }
+
+        training_data = {
+            "id": t.id,
+            "title": t.title,
+            "status": getattr(t, 'status', None),
+            "start_date": t.start_date.isoformat() if t.start_date else None,
+            "end_date": t.end_date.isoformat() if t.end_date else None,
+            "duration_days": getattr(t, 'duration_days', None),
+            "duration_hours": getattr(t, 'duration_hours', None),
+            "duration_type": getattr(t, 'duration_type', 'days'),
+            "zeitraum": getattr(t, 'zeitraum', None),
+            "training_type": getattr(t, 'training_type', None),
+            "training_format": getattr(t, 'training_format', None),
+            "location": getattr(t, 'location', None),
+            "location_details": getattr(t, 'location_details', None),
+            "online_link": getattr(t, 'online_link', None),
+            "max_participants": getattr(t, 'max_participants', None),
+            "language": getattr(t, 'language', None),
+            # Comment fields (excluding finance)
+            "internal_notes": getattr(t, 'internal_notes', None),
+            "logistics_notes": getattr(t, 'logistics_notes', None),
+            "communication_notes": getattr(t, 'communication_notes', None),
+            # Location booking info
+            "location_booking": getattr(t, 'location_booking', None),
+            "catering_booking": getattr(t, 'catering_booking', None),
+            # Location details from linked location
+            "location_info": location_info
+            # Note: costs (tagessatz, price_external, price_internal, etc.) excluded
+        }
+        result.append(training_data)
+
+    return jsonify(result)
 
 
 @app.route('/trainer/apply/<int:training_id>', methods=['POST'])
