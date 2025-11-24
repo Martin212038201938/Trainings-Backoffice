@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -8,6 +9,8 @@ from ..core.deps import get_current_active_user, get_db, require_backoffice
 from ..database import SessionLocal
 from ..models import Brand, Trainer, User
 from ..schemas.base import TrainerCreate, TrainerRead
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -41,6 +44,14 @@ def create_trainer(
     trainer = Trainer(**payload.dict(exclude={"brand_ids"}))
     if payload.brand_ids:
         trainer.brands = db.query(Brand).filter(Brand.id.in_(payload.brand_ids)).all()
+
+    # Auto-link to user if exists with same email
+    if trainer.email:
+        user = db.query(User).filter(User.email == trainer.email).first()
+        if user and not db.query(Trainer).filter(Trainer.user_id == user.id).first():
+            trainer.user_id = user.id
+            logger.info(f"Auto-linked trainer to user {user.id} by email {trainer.email}")
+
     db.add(trainer)
     db.commit()
     db.refresh(trainer)
