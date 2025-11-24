@@ -732,12 +732,7 @@
                 { name: 'date', label: 'Datum', type: 'date' },
                 { name: 'status', label: 'Status', type: 'select', options: ['planned', 'confirmed', 'delivered', 'invoiced'] }
             ],
-            customer: [
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'email', label: 'Email', type: 'email' },
-                { name: 'phone', label: 'Telefon', type: 'text' },
-                { name: 'company', label: 'Firma', type: 'text' }
-            ],
+            customer: 'custom', // Special handling for customer form
             trainer: 'custom', // Special handling for trainer form
             brand: [
                 { name: 'name', label: 'Name', type: 'text', required: true },
@@ -751,6 +746,78 @@
                 { name: 'is_active', label: 'Aktiv', type: 'checkbox' }
             ]
         };
+
+        function generateCustomerForm() {
+            return `
+                <div class="form-group">
+                    <label>Firma *</label>
+                    <input type="text" name="company_name" required style="width:100%;padding:0.5rem;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Anrede</label>
+                        <select name="salutation" style="width:100%;padding:0.5rem;">
+                            <option value="">---</option>
+                            <option value="Frau">Frau</option>
+                            <option value="Herr">Herr</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Vorname</label>
+                        <input type="text" name="first_name" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Nachname</label>
+                        <input type="text" name="last_name" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="contact_email" style="width:100%;padding:0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="text" name="contact_phone" style="width:100%;padding:0.5rem;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>VAT/USt-ID</label>
+                    <input type="text" name="vat_number" style="width:100%;padding:0.5rem;">
+                </div>
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">Rechnungsadresse</legend>
+                    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Straße</label>
+                            <input type="text" name="street" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nr.</label>
+                            <input type="text" name="street_number" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>PLZ</label>
+                            <input type="text" name="postal_code" style="width:100%;padding:0.5rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Ort</label>
+                            <input type="text" name="city" style="width:100%;padding:0.5rem;">
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="form-group">
+                    <label>Konditionen</label>
+                    <textarea name="conditions" style="width:100%;padding:0.5rem;min-height:60px;" placeholder="Zahlungsbedingungen, Rabatte, etc."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Kommentar</label>
+                    <textarea name="comment" style="width:100%;padding:0.5rem;min-height:80px;"></textarea>
+                </div>
+            `;
+        }
 
         function generateTrainerForm() {
             return `
@@ -840,8 +907,12 @@
 
             const fields = formFields[type];
 
-            if (fields === 'custom' && type === 'trainer') {
-                document.getElementById('modalFields').innerHTML = generateTrainerForm();
+            if (fields === 'custom') {
+                if (type === 'trainer') {
+                    document.getElementById('modalFields').innerHTML = generateTrainerForm();
+                } else if (type === 'customer') {
+                    document.getElementById('modalFields').innerHTML = generateCustomerForm();
+                }
             } else {
                 document.getElementById('modalFields').innerHTML = fields.map(f => `
                     <div class="form-group">
@@ -892,6 +963,23 @@
                         selected: formData.getAll('spec_selected'),
                         custom: formData.getAll('spec_custom').filter(s => s.trim() !== '')
                     }
+                };
+            } else if (currentFormType === 'customer') {
+                // Handle customer form specially
+                data = {
+                    company_name: formData.get('company_name'),
+                    first_name: formData.get('first_name'),
+                    last_name: formData.get('last_name'),
+                    salutation: formData.get('salutation'),
+                    contact_email: formData.get('contact_email'),
+                    contact_phone: formData.get('contact_phone'),
+                    vat_number: formData.get('vat_number'),
+                    street: formData.get('street'),
+                    street_number: formData.get('street_number'),
+                    postal_code: formData.get('postal_code'),
+                    city: formData.get('city'),
+                    conditions: formData.get('conditions'),
+                    comment: formData.get('comment')
                 };
             } else if (currentFormType === 'user') {
                 // Handle user form - checkbox needs special handling

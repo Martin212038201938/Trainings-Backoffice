@@ -483,12 +483,23 @@ def customer_to_dict(c):
         "id": c.id,
         "name": c.contact_name or c.company_name,
         "company": c.company_name,
+        "first_name": c.first_name,
+        "last_name": c.last_name,
+        "salutation": c.salutation,
         "contact_name": c.contact_name,
         "email": c.contact_email,
         "phone": c.contact_phone,
+        "vat_number": c.vat_number,
+        "street": c.street,
+        "street_number": c.street_number,
+        "postal_code": c.postal_code,
+        "city": c.city,
         "billing_address": c.billing_address,
+        "conditions": c.conditions,
+        "comment": c.comment,
         "notes": c.notes,
-        "status": c.status
+        "status": c.status,
+        "trainings": [{"id": t.id, "title": t.title} for t in c.trainings] if c.trainings else []
     }
 
 
@@ -506,20 +517,33 @@ def create_customer():
     if not data:
         return jsonify({'error': 'Invalid JSON'}), 400
 
-    customer = Customer(
-        company_name=data.get('company') or data.get('name', ''),
-        contact_name=data.get('name'),
-        contact_email=data.get('email'),
-        contact_phone=data.get('phone'),
-        notes=data.get('notes')
-    )
+    try:
+        customer = Customer(
+            company_name=data.get('company') or data.get('company_name', ''),
+            first_name=data.get('first_name'),
+            last_name=data.get('last_name'),
+            salutation=data.get('salutation'),
+            contact_email=data.get('email') or data.get('contact_email'),
+            contact_phone=data.get('phone') or data.get('contact_phone'),
+            vat_number=data.get('vat_number'),
+            street=data.get('street'),
+            street_number=data.get('street_number'),
+            postal_code=data.get('postal_code'),
+            city=data.get('city'),
+            conditions=data.get('conditions'),
+            comment=data.get('comment'),
+            notes=data.get('notes')
+        )
 
-    db = get_db()
-    db.add(customer)
-    db.commit()
-    db.refresh(customer)
+        db = get_db()
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
 
-    return jsonify(customer_to_dict(customer)), 201
+        return jsonify(customer_to_dict(customer)), 201
+    except Exception as e:
+        logger.error(f"Error creating customer: {e}")
+        return jsonify({'error': f'Fehler beim Erstellen: {str(e)}'}), 500
 
 
 @app.route('/customers/<int:customer_id>')
