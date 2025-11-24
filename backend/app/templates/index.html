@@ -166,27 +166,42 @@
             </div>
         </div>
 
-        <!-- Trainer Application Form -->
-        <div class="login-box" id="applicationBox" style="display: none; max-width: 600px;">
+        <!-- Trainer Application Form - Step 1 -->
+        <div class="login-box" id="applicationStep1" style="display: none; max-width: 500px;">
             <img src="https://www.yellow-boat.com/wp-content/uploads/2016/10/yellowBoatLogoico.png" alt="Yellow-Boat Academy" class="login-logo">
             <h1 style="font-size: 1.3rem;">Trainer-Bewerbung</h1>
-            <form id="applicationForm">
+            <p style="text-align: center; color: #666; margin-bottom: 1rem;">Schritt 1 von 2</p>
+            <form id="applicationFormStep1">
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Login-Daten</legend>
                     <div class="form-group">
                         <label>E-Mail-Adresse (wird auch als Benutzername verwendet)</label>
-                        <input type="email" name="email" required>
+                        <input type="email" name="email" id="appEmail" required>
                     </div>
                     <div class="form-group">
                         <label>Passwort</label>
-                        <input type="password" name="password" required minlength="6">
+                        <input type="password" name="password" id="appPassword" required minlength="6">
                     </div>
                     <div class="form-group">
                         <label>Passwort bestätigen</label>
-                        <input type="password" name="password_confirm" required minlength="6">
+                        <input type="password" name="password_confirm" id="appPasswordConfirm" required minlength="6">
                     </div>
                 </fieldset>
 
+                <button type="submit" class="btn btn-primary">Weiter zu Schritt 2</button>
+                <div class="error" id="applicationError1"></div>
+            </form>
+            <div style="margin-top: 1rem; text-align: center;">
+                <a href="#" onclick="showLoginForm()" style="color: var(--yb-hellblau); text-decoration: none;">Zurück zum Login</a>
+            </div>
+        </div>
+
+        <!-- Trainer Application Form - Step 2 -->
+        <div class="login-box" id="applicationStep2" style="display: none; max-width: 700px;">
+            <img src="https://www.yellow-boat.com/wp-content/uploads/2016/10/yellowBoatLogoico.png" alt="Yellow-Boat Academy" class="login-logo">
+            <h1 style="font-size: 1.3rem;">Trainer-Bewerbung</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 1rem;">Schritt 2 von 2</p>
+            <form id="applicationFormStep2">
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Persönliche Daten</legend>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -203,31 +218,47 @@
                         <label>Telefon</label>
                         <input type="tel" name="phone">
                     </div>
-                    <div class="form-group">
-                        <label>Adresse</label>
-                        <textarea name="address" style="min-height: 60px;"></textarea>
+                    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Straße</label>
+                            <input type="text" name="street">
+                        </div>
+                        <div class="form-group">
+                            <label>Hausnr.</label>
+                            <input type="text" name="house_number">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>PLZ</label>
+                            <input type="text" name="postal_code">
+                        </div>
+                        <div class="form-group">
+                            <label>Ort</label>
+                            <input type="text" name="city">
+                        </div>
                     </div>
                 </fieldset>
 
                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Berufliche Informationen</legend>
+                    <div class="form-group">
+                        <label>Region</label>
+                        <input type="text" name="region" placeholder="z.B. Bayern, NRW">
+                    </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
-                            <label>Tagessatz (EUR)</label>
-                            <input type="number" name="default_day_rate" step="0.01">
+                            <label>USt-IdNr.</label>
+                            <input type="text" name="vat_number">
                         </div>
                         <div class="form-group">
-                            <label>Region</label>
-                            <input type="text" name="region" placeholder="z.B. Bayern, NRW">
+                            <label>Kontonummer / IBAN</label>
+                            <input type="text" name="bank_account" placeholder="DE...">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>USt-IdNr.</label>
-                        <input type="text" name="vat_number">
-                    </div>
-                    <div class="form-group">
-                        <label>Bio / Über mich</label>
-                        <textarea name="bio" style="min-height: 100px;" placeholder="Beschreiben Sie Ihre Erfahrung und Qualifikationen..."></textarea>
+                        <label>Weitere Informationen</label>
+                        <textarea name="additional_info" style="min-height: 100px;" placeholder="Beschreiben Sie Ihre Erfahrung und Qualifikationen..."></textarea>
                     </div>
                     <div class="form-group">
                         <label>Spezialisierungen (kommagetrennt)</label>
@@ -243,11 +274,24 @@
                     </div>
                 </fieldset>
 
-                <button type="submit" class="btn btn-primary">Bewerbung absenden</button>
-                <div class="error" id="applicationError"></div>
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Meine bisherigen Trainings</legend>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
+                        Sie können bis zu 10 Trainings eintragen. Eine neue Zeile erscheint automatisch, sobald Sie ein Training vollständig ausgefüllt haben.
+                    </p>
+                    <div id="trainingsContainer">
+                        <!-- Training entries will be added here dynamically -->
+                    </div>
+                </fieldset>
+
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn" style="background: #6c757d; color: white;" onclick="goBackToStep1()">Zurück</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Bewerbung absenden</button>
+                </div>
+                <div class="error" id="applicationError2"></div>
             </form>
             <div style="margin-top: 1rem; text-align: center;">
-                <a href="#" onclick="showLoginForm()" style="color: var(--yb-hellblau); text-decoration: none;">Zurück zum Login</a>
+                <a href="#" onclick="showLoginForm()" style="color: var(--yb-hellblau); text-decoration: none;">Abbrechen</a>
             </div>
         </div>
     </div>
@@ -556,9 +600,25 @@
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label>Adresse</label>
-                                    <textarea name="address" id="profile_address" style="width:100%;padding:0.5rem;min-height:60px;"></textarea>
+                                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label>Straße</label>
+                                        <input type="text" name="street" id="profile_street" style="width:100%;padding:0.5rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Hausnr.</label>
+                                        <input type="text" name="house_number" id="profile_house_number" style="width:100%;padding:0.5rem;">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label>PLZ</label>
+                                        <input type="text" name="postal_code" id="profile_postal_code" style="width:100%;padding:0.5rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Ort</label>
+                                        <input type="text" name="city" id="profile_city" style="width:100%;padding:0.5rem;">
+                                    </div>
                                 </div>
 
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -567,8 +627,8 @@
                                         <input type="text" name="vat_number" id="profile_vat_number" style="width:100%;padding:0.5rem;">
                                     </div>
                                     <div class="form-group">
-                                        <label>Standard-Tagessatz (€)</label>
-                                        <input type="number" name="default_day_rate" id="profile_default_day_rate" step="0.01" style="width:100%;padding:0.5rem;">
+                                        <label>Kontonummer / IBAN</label>
+                                        <input type="text" name="bank_account" id="profile_bank_account" style="width:100%;padding:0.5rem;" placeholder="DE...">
                                     </div>
                                 </div>
 
@@ -589,8 +649,8 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <label>Bio / Über mich</label>
-                                    <textarea name="bio" id="profile_bio" style="width:100%;padding:0.5rem;min-height:100px;"></textarea>
+                                    <label>Weitere Informationen</label>
+                                    <textarea name="additional_info" id="profile_additional_info" style="width:100%;padding:0.5rem;min-height:100px;"></textarea>
                                 </div>
 
                                 <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
@@ -786,43 +846,202 @@
             }
         });
 
-        // Trainer Application Functions
+        // Trainer Application Functions - Two Step Form
+        let applicationStep1Data = {};
+        let trainingsCount = 0;
+        const MAX_TRAININGS = 10;
+
         function showTrainerApplicationForm() {
             document.getElementById('loginBox').style.display = 'none';
-            document.getElementById('applicationBox').style.display = 'block';
-            document.getElementById('applicationError').textContent = '';
+            document.getElementById('applicationStep1').style.display = 'block';
+            document.getElementById('applicationStep2').style.display = 'none';
+            document.getElementById('applicationError1').textContent = '';
+            document.getElementById('applicationError2').textContent = '';
+            applicationStep1Data = {};
+            trainingsCount = 0;
+            initTrainingsContainer();
         }
 
         function showLoginForm() {
-            document.getElementById('applicationBox').style.display = 'none';
+            document.getElementById('applicationStep1').style.display = 'none';
+            document.getElementById('applicationStep2').style.display = 'none';
             document.getElementById('loginBox').style.display = 'block';
             document.getElementById('loginError').textContent = '';
         }
 
-        document.getElementById('applicationForm').addEventListener('submit', async (e) => {
+        function goBackToStep1() {
+            document.getElementById('applicationStep2').style.display = 'none';
+            document.getElementById('applicationStep1').style.display = 'block';
+            // Restore saved data
+            document.getElementById('appEmail').value = applicationStep1Data.email || '';
+            document.getElementById('appPassword').value = applicationStep1Data.password || '';
+            document.getElementById('appPasswordConfirm').value = applicationStep1Data.password || '';
+        }
+
+        function initTrainingsContainer() {
+            document.getElementById('trainingsContainer').innerHTML = '';
+            trainingsCount = 0;
+            addTrainingEntry();
+        }
+
+        function addTrainingEntry() {
+            if (trainingsCount >= MAX_TRAININGS) return;
+
+            const container = document.getElementById('trainingsContainer');
+            const index = trainingsCount;
+            trainingsCount++;
+
+            const entryHtml = `
+                <div class="training-entry" id="training-${index}" style="border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; background: #fafafa;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <strong style="color: var(--yb-hellblau);">Training ${index + 1}</strong>
+                        ${index > 0 ? `<button type="button" onclick="removeTrainingEntry(${index})" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;">&times;</button>` : ''}
+                    </div>
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" name="training_title_${index}" onchange="checkTrainingComplete(${index})">
+                    </div>
+                    <div class="form-group">
+                        <label>Kurzbeschreibung</label>
+                        <textarea name="training_description_${index}" style="min-height: 60px;" onchange="checkTrainingComplete(${index})"></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Dauer</label>
+                            <input type="number" name="training_duration_${index}" min="1" onchange="checkTrainingComplete(${index})">
+                        </div>
+                        <div class="form-group">
+                            <label>Einheit</label>
+                            <select name="training_duration_unit_${index}" onchange="checkTrainingComplete(${index})">
+                                <option value="">Bitte wählen</option>
+                                <option value="Stunden">Stunden</option>
+                                <option value="Tage">Tage</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" name="training_materials_${index}" style="width: auto;">
+                            Trainingsmaterialien vorhanden
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Zielgruppe</label>
+                        <input type="text" name="training_target_${index}" onchange="checkTrainingComplete(${index})">
+                    </div>
+                    <div class="form-group">
+                        <label>Mein Angebotspreis netto komplett an Yellow-Boat (EUR)</label>
+                        <input type="number" name="training_price_${index}" step="0.01" min="0" onchange="checkTrainingComplete(${index})">
+                        <small style="color: #666; display: block; margin-top: 0.25rem;">
+                            Hinweis: Für die Abwicklung und Vermarktung kommt seitens Yellow-Boat ein Aufschlag zum Verkaufspreis vor Kunden.
+                        </small>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', entryHtml);
+        }
+
+        function removeTrainingEntry(index) {
+            const entry = document.getElementById(`training-${index}`);
+            if (entry) {
+                entry.remove();
+            }
+        }
+
+        function checkTrainingComplete(index) {
+            const form = document.getElementById('applicationFormStep2');
+            const title = form.querySelector(`[name="training_title_${index}"]`)?.value;
+            const description = form.querySelector(`[name="training_description_${index}"]`)?.value;
+            const duration = form.querySelector(`[name="training_duration_${index}"]`)?.value;
+            const durationUnit = form.querySelector(`[name="training_duration_unit_${index}"]`)?.value;
+            const target = form.querySelector(`[name="training_target_${index}"]`)?.value;
+            const price = form.querySelector(`[name="training_price_${index}"]`)?.value;
+
+            // Check if all required fields are filled
+            if (title && description && duration && durationUnit && target && price) {
+                // Check if we need to add a new entry (if this is the last one)
+                const lastIndex = trainingsCount - 1;
+                if (index === lastIndex && trainingsCount < MAX_TRAININGS) {
+                    addTrainingEntry();
+                }
+            }
+        }
+
+        function collectTrainings() {
+            const form = document.getElementById('applicationFormStep2');
+            const trainings = [];
+
+            for (let i = 0; i < trainingsCount; i++) {
+                const title = form.querySelector(`[name="training_title_${i}"]`)?.value;
+                if (!title) continue; // Skip empty entries
+
+                trainings.push({
+                    title: title,
+                    description: form.querySelector(`[name="training_description_${i}"]`)?.value || '',
+                    duration: parseInt(form.querySelector(`[name="training_duration_${i}"]`)?.value) || 0,
+                    duration_unit: form.querySelector(`[name="training_duration_unit_${i}"]`)?.value || '',
+                    materials_available: form.querySelector(`[name="training_materials_${i}"]`)?.checked || false,
+                    target_audience: form.querySelector(`[name="training_target_${i}"]`)?.value || '',
+                    price: parseFloat(form.querySelector(`[name="training_price_${i}"]`)?.value) || 0
+                });
+            }
+
+            return trainings;
+        }
+
+        // Step 1 form submission
+        document.getElementById('applicationFormStep1').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
 
             // Validate passwords match
             if (formData.get('password') !== formData.get('password_confirm')) {
-                document.getElementById('applicationError').textContent = 'Passwörter stimmen nicht überein';
+                document.getElementById('applicationError1').textContent = 'Passwörter stimmen nicht überein';
                 return;
             }
 
-            const data = {
+            // Validate password length
+            if (formData.get('password').length < 6) {
+                document.getElementById('applicationError1').textContent = 'Passwort muss mindestens 6 Zeichen lang sein';
+                return;
+            }
+
+            // Save step 1 data
+            applicationStep1Data = {
                 email: formData.get('email'),
-                password: formData.get('password'),
+                password: formData.get('password')
+            };
+
+            // Go to step 2
+            document.getElementById('applicationStep1').style.display = 'none';
+            document.getElementById('applicationStep2').style.display = 'block';
+            initTrainingsContainer();
+        });
+
+        // Step 2 form submission
+        document.getElementById('applicationFormStep2').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            const data = {
+                email: applicationStep1Data.email,
+                password: applicationStep1Data.password,
                 first_name: formData.get('first_name'),
                 last_name: formData.get('last_name'),
                 phone: formData.get('phone'),
-                address: formData.get('address'),
+                street: formData.get('street'),
+                house_number: formData.get('house_number'),
+                postal_code: formData.get('postal_code'),
+                city: formData.get('city'),
                 vat_number: formData.get('vat_number'),
+                bank_account: formData.get('bank_account'),
                 linkedin_url: formData.get('linkedin_url'),
                 website: formData.get('website'),
-                default_day_rate: formData.get('default_day_rate') ? parseFloat(formData.get('default_day_rate')) : null,
                 region: formData.get('region'),
-                bio: formData.get('bio'),
-                specializations: formData.get('specializations')
+                additional_info: formData.get('additional_info'),
+                specializations: formData.get('specializations'),
+                proposed_trainings: collectTrainings()
             };
 
             try {
@@ -836,13 +1055,15 @@
 
                 if (res.ok) {
                     alert('Ihre Bewerbung wurde erfolgreich eingereicht! Sie erhalten eine Benachrichtigung, sobald Ihre Bewerbung geprüft wurde.');
-                    e.target.reset();
+                    document.getElementById('applicationFormStep1').reset();
+                    document.getElementById('applicationFormStep2').reset();
+                    applicationStep1Data = {};
                     showLoginForm();
                 } else {
-                    document.getElementById('applicationError').textContent = result.error || 'Fehler beim Einreichen der Bewerbung';
+                    document.getElementById('applicationError2').textContent = result.error || 'Fehler beim Einreichen der Bewerbung';
                 }
             } catch (err) {
-                document.getElementById('applicationError').textContent = 'Verbindungsfehler';
+                document.getElementById('applicationError2').textContent = 'Verbindungsfehler';
             }
         });
 
@@ -1122,13 +1343,16 @@
                 document.getElementById('profile_last_name').value = trainer.last_name || '';
                 document.getElementById('profile_email').value = trainer.email || '';
                 document.getElementById('profile_phone').value = trainer.phone || '';
-                document.getElementById('profile_address').value = trainer.address || '';
+                document.getElementById('profile_street').value = trainer.street || '';
+                document.getElementById('profile_house_number').value = trainer.house_number || '';
+                document.getElementById('profile_postal_code').value = trainer.postal_code || '';
+                document.getElementById('profile_city').value = trainer.city || '';
                 document.getElementById('profile_vat_number').value = trainer.vat_number || '';
-                document.getElementById('profile_default_day_rate').value = trainer.default_day_rate || '';
+                document.getElementById('profile_bank_account').value = trainer.bank_account || '';
                 document.getElementById('profile_linkedin_url').value = trainer.linkedin_url || '';
                 document.getElementById('profile_website').value = trainer.website || '';
                 document.getElementById('profile_region').value = trainer.region || '';
-                document.getElementById('profile_bio').value = trainer.bio || '';
+                document.getElementById('profile_additional_info').value = trainer.additional_info || '';
                 document.getElementById('profile_notes').value = trainer.notes || '';
 
                 // Photo
@@ -1191,13 +1415,16 @@
                         last_name: document.getElementById('profile_last_name').value,
                         email: document.getElementById('profile_email').value,
                         phone: document.getElementById('profile_phone').value,
-                        address: document.getElementById('profile_address').value,
+                        street: document.getElementById('profile_street').value,
+                        house_number: document.getElementById('profile_house_number').value,
+                        postal_code: document.getElementById('profile_postal_code').value,
+                        city: document.getElementById('profile_city').value,
                         vat_number: document.getElementById('profile_vat_number').value,
-                        default_day_rate: document.getElementById('profile_default_day_rate').value ? parseFloat(document.getElementById('profile_default_day_rate').value) : null,
+                        bank_account: document.getElementById('profile_bank_account').value,
                         linkedin_url: document.getElementById('profile_linkedin_url').value,
                         website: document.getElementById('profile_website').value,
                         region: document.getElementById('profile_region').value,
-                        bio: document.getElementById('profile_bio').value,
+                        additional_info: document.getElementById('profile_additional_info').value,
                         notes: document.getElementById('profile_notes').value,
                         specializations: {
                             selected: selectedSpecs,

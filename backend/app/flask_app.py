@@ -707,16 +707,19 @@ def trainer_to_dict(t):
         "name": t.name,
         "email": t.email,
         "phone": t.phone,
-        "address": t.address,
+        "street": getattr(t, 'street', None),
+        "house_number": getattr(t, 'house_number', None),
+        "postal_code": getattr(t, 'postal_code', None),
+        "city": getattr(t, 'city', None),
         "vat_number": getattr(t, 'vat_number', None),
+        "bank_account": getattr(t, 'bank_account', None),
         "linkedin_url": getattr(t, 'linkedin_url', None),
         "website": getattr(t, 'website', None),
         "photo_path": getattr(t, 'photo_path', None),
         "specializations": getattr(t, 'specializations', None) or {"selected": [], "custom": []},
-        "bio": getattr(t, 'bio', None),
+        "additional_info": getattr(t, 'additional_info', None),
         "notes": getattr(t, 'notes', None),
-        "region": getattr(t, 'region', None),
-        "default_day_rate": getattr(t, 'default_day_rate', None)
+        "region": getattr(t, 'region', None)
     }
 
 
@@ -1481,8 +1484,9 @@ def update_trainer_profile():
     data = request.get_json()
 
     # Update allowed fields (excluding customer feedback which trainers shouldn't edit)
-    for key in ['first_name', 'last_name', 'email', 'phone', 'address', 'vat_number',
-                'linkedin_url', 'website', 'default_day_rate', 'region', 'bio', 'notes',
+    for key in ['first_name', 'last_name', 'email', 'phone', 'street', 'house_number',
+                'postal_code', 'city', 'vat_number', 'bank_account',
+                'linkedin_url', 'website', 'region', 'additional_info', 'notes',
                 'specializations']:
         if key in data:
             setattr(trainer, key, data[key])
@@ -2057,20 +2061,27 @@ def submit_trainer_application():
         return jsonify({"error": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"}), 400
 
     # Create application
+    import json
+    proposed_trainings = data.get('proposed_trainings', [])
+
     application = TrainerRegistration(
         email=data.get('email'),
         password_hash=get_password_hash(data.get('password')),
         first_name=data.get('first_name'),
         last_name=data.get('last_name'),
         phone=data.get('phone'),
-        address=data.get('address'),
+        street=data.get('street'),
+        house_number=data.get('house_number'),
+        postal_code=data.get('postal_code'),
+        city=data.get('city'),
         vat_number=data.get('vat_number'),
+        bank_account=data.get('bank_account'),
         linkedin_url=data.get('linkedin_url'),
         website=data.get('website'),
-        default_day_rate=data.get('default_day_rate'),
         region=data.get('region'),
-        bio=data.get('bio'),
+        additional_info=data.get('additional_info'),
         specializations=data.get('specializations'),
+        proposed_trainings=json.dumps(proposed_trainings) if proposed_trainings else None,
         status='pending'
     )
 
@@ -2086,6 +2097,26 @@ def submit_trainer_application():
 
     # Create a system message for each admin/backoffice user
     for admin in admin_users:
+        # Format address
+        address_parts = [p for p in [application.street, application.house_number] if p]
+        address_line1 = ' '.join(address_parts) if address_parts else ''
+        address_parts2 = [p for p in [application.postal_code, application.city] if p]
+        address_line2 = ' '.join(address_parts2) if address_parts2 else ''
+        full_address = f"{address_line1}, {address_line2}" if address_line1 and address_line2 else (address_line1 or address_line2 or 'Nicht angegeben')
+
+        # Format trainings
+        trainings_text = 'Keine Trainings angegeben'
+        if application.proposed_trainings:
+            import json
+            trainings = json.loads(application.proposed_trainings)
+            if trainings:
+                trainings_list = []
+                for i, t in enumerate(trainings, 1):
+                    duration_text = f"{t.get('duration', '')} {t.get('duration_unit', '')}"
+                    materials = "Ja" if t.get('materials_available') else "Nein"
+                    trainings_list.append(f"{i}. {t.get('title', 'Ohne Titel')}\n   - Beschreibung: {t.get('description', '-')}\n   - Dauer: {duration_text}\n   - Materialien vorhanden: {materials}\n   - Zielgruppe: {t.get('target_audience', '-')}\n   - Angebotspreis: {t.get('price', '-')} EUR")
+                trainings_text = '\n'.join(trainings_list)
+
         message = Message(
             sender_id=admin.id,  # System message, sender = recipient
             recipient_id=admin.id,
@@ -2096,18 +2127,22 @@ def submit_trainer_application():
 Name: {application.first_name} {application.last_name}
 E-Mail: {application.email}
 Telefon: {application.phone or 'Nicht angegeben'}
+Adresse: {full_address}
 Region: {application.region or 'Nicht angegeben'}
 
-Tagessatz: {application.default_day_rate or 'Nicht angegeben'} EUR
 USt-IdNr: {application.vat_number or 'Nicht angegeben'}
+Kontonummer: {application.bank_account or 'Nicht angegeben'}
 
-Bio:
-{application.bio or 'Nicht angegeben'}
+Weitere Informationen:
+{application.additional_info or 'Nicht angegeben'}
 
 Spezialisierungen: {application.specializations or 'Nicht angegeben'}
 
 LinkedIn: {application.linkedin_url or 'Nicht angegeben'}
 Website: {application.website or 'Nicht angegeben'}
+
+--- Meine bisherigen Trainings ---
+{trainings_text}
 
 ---
 Application ID: {application.id}""",
