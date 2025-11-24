@@ -48,6 +48,7 @@ class Brand(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     slug = Column(String(100), unique=True, nullable=False)
+    description = Column(Text)
     default_sender_name = Column(String(255))
     default_sender_email = Column(String(255))
     default_timezone = Column(String(64), default="Europe/Berlin")
