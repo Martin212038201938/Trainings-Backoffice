@@ -281,7 +281,46 @@ class Location(Base, TimestampMixin):
     participant_info = Column(Text)  # Informationen für TN (Freitext)
 
 
-MESSAGE_TYPES = ("error_report", "message")
+APPLICATION_STATUSES = ("pending", "approved", "rejected")
+
+
+class TrainerApplication(Base, TimestampMixin):
+    """Trainer applications from prospective trainers."""
+    __tablename__ = "trainer_applications"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Login credentials
+    email = Column(String(255), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+
+    # Personal info
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    phone = Column(String(100))
+    address = Column(Text)
+
+    # Professional info
+    vat_number = Column(String(100))
+    linkedin_url = Column(String(500))
+    website = Column(String(500))
+    default_day_rate = Column(Float)
+    region = Column(String(100))
+    bio = Column(Text)
+    specializations = Column(Text)  # Comma-separated or JSON
+
+    # Photo
+    photo_url = Column(String(500))
+
+    # Application status
+    status = Column(String(50), default="pending")
+    reviewed_at = Column(DateTime)
+    reviewed_by = Column(Integer, ForeignKey("users.id"))
+
+    reviewer = relationship("User", foreign_keys=[reviewed_by])
+
+
+MESSAGE_TYPES = ("error_report", "message", "trainer_application")
 MESSAGE_STATUSES = ("open", "solved", "not_solvable")
 
 

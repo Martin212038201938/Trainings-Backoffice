@@ -146,12 +146,12 @@
 <body>
     <!-- Login Screen -->
     <div class="login-container" id="loginScreen">
-        <div class="login-box">
+        <div class="login-box" id="loginBox">
             <img src="https://www.yellow-boat.com/wp-content/uploads/2016/10/yellowBoatLogoico.png" alt="Yellow-Boat Academy" class="login-logo">
             <h1>Yellow-Boat Academy</h1>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="username">Benutzername</label>
+                    <label for="username">Benutzername / E-Mail</label>
                     <input type="text" id="username" required>
                 </div>
                 <div class="form-group">
@@ -161,6 +161,94 @@
                 <button type="submit" class="btn btn-primary">Anmelden</button>
                 <div class="error" id="loginError"></div>
             </form>
+            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid #ddd; padding-top: 1rem;">
+                <a href="#" onclick="showTrainerApplicationForm()" style="color: var(--yb-hellblau); text-decoration: none;">Als Trainer bewerben</a>
+            </div>
+        </div>
+
+        <!-- Trainer Application Form -->
+        <div class="login-box" id="applicationBox" style="display: none; max-width: 600px;">
+            <img src="https://www.yellow-boat.com/wp-content/uploads/2016/10/yellowBoatLogoico.png" alt="Yellow-Boat Academy" class="login-logo">
+            <h1 style="font-size: 1.3rem;">Trainer-Bewerbung</h1>
+            <form id="applicationForm">
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Login-Daten</legend>
+                    <div class="form-group">
+                        <label>E-Mail-Adresse (wird auch als Benutzername verwendet)</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Passwort</label>
+                        <input type="password" name="password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Passwort bestätigen</label>
+                        <input type="password" name="password_confirm" required minlength="6">
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Persönliche Daten</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Vorname</label>
+                            <input type="text" name="first_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nachname</label>
+                            <input type="text" name="last_name" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="tel" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label>Adresse</label>
+                        <textarea name="address" style="min-height: 60px;"></textarea>
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem; color: var(--yb-hellblau);">Berufliche Informationen</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Tagessatz (EUR)</label>
+                            <input type="number" name="default_day_rate" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Region</label>
+                            <input type="text" name="region" placeholder="z.B. Bayern, NRW">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>USt-IdNr.</label>
+                        <input type="text" name="vat_number">
+                    </div>
+                    <div class="form-group">
+                        <label>Bio / Über mich</label>
+                        <textarea name="bio" style="min-height: 100px;" placeholder="Beschreiben Sie Ihre Erfahrung und Qualifikationen..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Spezialisierungen (kommagetrennt)</label>
+                        <input type="text" name="specializations" placeholder="z.B. Agile, Scrum, Leadership">
+                    </div>
+                    <div class="form-group">
+                        <label>LinkedIn URL</label>
+                        <input type="url" name="linkedin_url" placeholder="https://linkedin.com/in/...">
+                    </div>
+                    <div class="form-group">
+                        <label>Website</label>
+                        <input type="url" name="website" placeholder="https://...">
+                    </div>
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary">Bewerbung absenden</button>
+                <div class="error" id="applicationError"></div>
+            </form>
+            <div style="margin-top: 1rem; text-align: center;">
+                <a href="#" onclick="showLoginForm()" style="color: var(--yb-hellblau); text-decoration: none;">Zurück zum Login</a>
+            </div>
         </div>
     </div>
 
@@ -581,6 +669,16 @@
                     <button class="btn btn-sm btn-primary" onclick="updateMessageStatus()" style="margin-left: 0.5rem;">Speichern</button>
                 </div>
 
+                <!-- Trainer application approval controls -->
+                <div id="trainerApprovalControls" style="display:none; margin-bottom: 1rem; padding: 1rem; background: #e8f5e9; border-radius: 4px;">
+                    <button class="btn btn-success" onclick="approveTrainerApplication()" style="margin-right: 0.5rem;">
+                        ✓ Trainer anlegen
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="rejectTrainerApplication()">
+                        ✗ Ablehnen
+                    </button>
+                </div>
+
                 <!-- Reply form -->
                 <div id="replySection" style="margin-top: 1rem;">
                     <h4>Antworten</h4>
@@ -659,6 +757,66 @@
                 }
             } catch (err) {
                 document.getElementById('loginError').textContent = 'Verbindungsfehler';
+            }
+        });
+
+        // Trainer Application Functions
+        function showTrainerApplicationForm() {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('applicationBox').style.display = 'block';
+            document.getElementById('applicationError').textContent = '';
+        }
+
+        function showLoginForm() {
+            document.getElementById('applicationBox').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'block';
+            document.getElementById('loginError').textContent = '';
+        }
+
+        document.getElementById('applicationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            // Validate passwords match
+            if (formData.get('password') !== formData.get('password_confirm')) {
+                document.getElementById('applicationError').textContent = 'Passwörter stimmen nicht überein';
+                return;
+            }
+
+            const data = {
+                email: formData.get('email'),
+                password: formData.get('password'),
+                first_name: formData.get('first_name'),
+                last_name: formData.get('last_name'),
+                phone: formData.get('phone'),
+                address: formData.get('address'),
+                vat_number: formData.get('vat_number'),
+                linkedin_url: formData.get('linkedin_url'),
+                website: formData.get('website'),
+                default_day_rate: formData.get('default_day_rate') ? parseFloat(formData.get('default_day_rate')) : null,
+                region: formData.get('region'),
+                bio: formData.get('bio'),
+                specializations: formData.get('specializations')
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/trainer/apply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    alert('Ihre Bewerbung wurde erfolgreich eingereicht! Sie erhalten eine Benachrichtigung, sobald Ihre Bewerbung geprüft wurde.');
+                    e.target.reset();
+                    showLoginForm();
+                } else {
+                    document.getElementById('applicationError').textContent = result.error || 'Fehler beim Einreichen der Bewerbung';
+                }
+            } catch (err) {
+                document.getElementById('applicationError').textContent = 'Verbindungsfehler';
             }
         });
 
@@ -1794,6 +1952,10 @@
             const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer', location: 'Location' };
             document.getElementById('modalTitle').textContent = `${titles[type]} erstellen`;
 
+            // Ensure submit button is visible (may have been hidden for view-only modals)
+            const submitBtn = document.querySelector('#createForm button[type="submit"]');
+            if (submitBtn) submitBtn.style.display = 'block';
+
             const fields = formFields[type];
 
             if (fields === 'custom') {
@@ -1831,8 +1993,12 @@
         async function showEditModal(type, id) {
             currentFormType = type;
             editingId = id;
-            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', location: 'Location' };
+            const titles = { training: 'Training', customer: 'Kunde', trainer: 'Trainer', brand: 'Marke', user: 'Benutzer', location: 'Location' };
             document.getElementById('modalTitle').textContent = `${titles[type]} bearbeiten`;
+
+            // Ensure submit button is visible (may have been hidden for view-only modals)
+            const submitBtn = document.querySelector('#createForm button[type="submit"]');
+            if (submitBtn) submitBtn.style.display = 'block';
 
             // Load the item data
             const res = await apiCall(`/${type}s/${id}`);
@@ -2382,10 +2548,12 @@
 
                 container.innerHTML = messages.map(m => {
                     const isUnread = !m.is_read;
-                    const statusBadge = m.message_type === 'error_report'
+                    const statusBadge = (m.message_type === 'error_report' || m.message_type === 'trainer_application')
                         ? `<span class="message-status status-${m.status}">${getStatusLabel(m.status)}</span>`
                         : '';
-                    const typeIcon = m.message_type === 'error_report' ? '⚠️' : '✉️';
+                    let typeIcon = '✉️';
+                    if (m.message_type === 'error_report') typeIcon = '⚠️';
+                    if (m.message_type === 'trainer_application') typeIcon = '👤';
 
                     return `
                         <div class="message-item ${isUnread ? 'message-unread' : ''}" onclick="viewMessage(${m.id})">
@@ -2418,6 +2586,8 @@
             return labels[status] || status;
         }
 
+        let currentApplicationId = null;
+
         async function viewMessage(id) {
             try {
                 const res = await apiCall(`/messages/${id}`);
@@ -2425,6 +2595,7 @@
                 const message = await res.json();
 
                 currentMessageId = id;
+                currentApplicationId = null;
 
                 document.getElementById('messageViewTitle').textContent = message.subject || 'Nachricht';
                 document.getElementById('messageFrom').textContent = message.sender_name;
@@ -2432,18 +2603,21 @@
                 document.getElementById('messageDate').textContent = new Date(message.created_at).toLocaleString('de-DE');
                 document.getElementById('messageBody').textContent = message.content;
 
-                // Show status for error reports
+                // Reset all special controls
+                document.getElementById('messageStatusRow').style.display = 'none';
+                document.getElementById('adminStatusControls').style.display = 'none';
+                document.getElementById('trainerApprovalControls').style.display = 'none';
+
+                // Show controls based on message type
                 if (message.message_type === 'error_report') {
                     document.getElementById('messageStatusRow').style.display = 'block';
                     document.getElementById('messageStatusDisplay').innerHTML =
                         `<span class="message-status status-${message.status}">${getStatusLabel(message.status)}</span>`;
 
                     // Show admin controls for error reports
-                    if (currentUser.role === 'admin') {
+                    if (currentUser.role === 'admin' || currentUser.role === 'backoffice_user') {
                         document.getElementById('adminStatusControls').style.display = 'block';
                         document.getElementById('messageStatusSelect').value = message.status;
-                    } else {
-                        document.getElementById('adminStatusControls').style.display = 'none';
                     }
 
                     // Show page URL if available
@@ -2451,9 +2625,21 @@
                         document.getElementById('messageBody').textContent =
                             `Seite: ${message.page_url}\n\n${message.content}`;
                     }
-                } else {
-                    document.getElementById('messageStatusRow').style.display = 'none';
-                    document.getElementById('adminStatusControls').style.display = 'none';
+                } else if (message.message_type === 'trainer_application') {
+                    // Extract application ID from message content
+                    const appIdMatch = message.content.match(/Application ID: (\d+)/);
+                    if (appIdMatch) {
+                        currentApplicationId = parseInt(appIdMatch[1]);
+                    }
+
+                    document.getElementById('messageStatusRow').style.display = 'block';
+                    document.getElementById('messageStatusDisplay').innerHTML =
+                        `<span class="message-status status-${message.status}">${getStatusLabel(message.status)}</span>`;
+
+                    // Show trainer approval controls for admins/backoffice if application is pending
+                    if ((currentUser.role === 'admin' || currentUser.role === 'backoffice_user') && message.status === 'open') {
+                        document.getElementById('trainerApprovalControls').style.display = 'block';
+                    }
                 }
 
                 document.getElementById('replyContent').value = '';
@@ -2466,6 +2652,92 @@
             } catch (err) {
                 console.error('Error viewing message:', err);
                 alert('Fehler beim Laden der Nachricht');
+            }
+        }
+
+        async function approveTrainerApplication() {
+            if (!currentApplicationId) {
+                alert('Keine Bewerbungs-ID gefunden');
+                return;
+            }
+
+            if (!confirm('Möchten Sie diese Trainerbewerbung genehmigen und den Trainer anlegen?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/trainer/applications/${currentApplicationId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    alert('Trainer wurde erfolgreich angelegt!');
+                    // Mark message as solved
+                    await fetch(`${API_URL}/messages/${currentMessageId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status: 'solved' })
+                    });
+                    closeMessageViewModal();
+                    loadMessages();
+                } else {
+                    alert(result.error || 'Fehler beim Anlegen des Trainers');
+                }
+            } catch (err) {
+                console.error('Error approving application:', err);
+                alert('Fehler beim Genehmigen der Bewerbung');
+            }
+        }
+
+        async function rejectTrainerApplication() {
+            if (!currentApplicationId) {
+                alert('Keine Bewerbungs-ID gefunden');
+                return;
+            }
+
+            if (!confirm('Möchten Sie diese Trainerbewerbung ablehnen?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/trainer/applications/${currentApplicationId}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    alert('Bewerbung wurde abgelehnt');
+                    // Mark message as not solvable
+                    await fetch(`${API_URL}/messages/${currentMessageId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status: 'not_solvable' })
+                    });
+                    closeMessageViewModal();
+                    loadMessages();
+                } else {
+                    alert(result.error || 'Fehler beim Ablehnen der Bewerbung');
+                }
+            } catch (err) {
+                console.error('Error rejecting application:', err);
+                alert('Fehler beim Ablehnen der Bewerbung');
             }
         }
 
