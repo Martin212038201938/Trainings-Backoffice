@@ -22,6 +22,57 @@ TRAINING_STATUSES = (
 TRAINING_TYPES = ("online", "classroom")
 TRAINING_FORMATS = ("inhouse", "public")
 
+# Define allowed status transitions
+# Key = current status, Value = list of allowed next statuses
+ALLOWED_STATUS_TRANSITIONS = {
+    "lead": ["appointment_scheduled", "initial_contact", "proposal_sent"],
+    "appointment_scheduled": ["initial_contact", "proposal_sent", "lead"],
+    "initial_contact": ["proposal_sent", "lead"],
+    "proposal_sent": ["trainer_outreach", "lead"],
+    "trainer_outreach": ["trainer_confirmed", "proposal_sent"],
+    "trainer_confirmed": ["planning", "trainer_outreach"],
+    "planning": ["delivered", "trainer_confirmed"],
+    "delivered": ["invoiced", "planning"],
+    "invoiced": ["delivered"],  # Can go back to delivered if correction needed
+}
+
+
+def validate_status_transition(current_status: str, new_status: str) -> tuple[bool, str]:
+    """
+    Validate if a status transition is allowed.
+
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if new_status not in TRAINING_STATUSES:
+        return False, f"Ungültiger Status: {new_status}. Erlaubt: {', '.join(TRAINING_STATUSES)}"
+
+    if current_status == new_status:
+        return True, ""
+
+    if current_status not in ALLOWED_STATUS_TRANSITIONS:
+        return False, f"Ungültiger aktueller Status: {current_status}"
+
+    allowed = ALLOWED_STATUS_TRANSITIONS[current_status]
+    if new_status not in allowed:
+        return False, f"Status-Übergang von '{current_status}' zu '{new_status}' nicht erlaubt. Erlaubt: {', '.join(allowed)}"
+
+    return True, ""
+
+
+def validate_training_type(training_type: str) -> tuple[bool, str]:
+    """Validate training type."""
+    if training_type and training_type not in TRAINING_TYPES:
+        return False, f"Ungültiger Trainingstyp: {training_type}. Erlaubt: {', '.join(TRAINING_TYPES)}"
+    return True, ""
+
+
+def validate_training_format(training_format: str) -> tuple[bool, str]:
+    """Validate training format."""
+    if training_format and training_format not in TRAINING_FORMATS:
+        return False, f"Ungültiges Trainingsformat: {training_format}. Erlaubt: {', '.join(TRAINING_FORMATS)}"
+    return True, ""
+
 customer_brands = Table(
     "customer_brands",
     Base.metadata,

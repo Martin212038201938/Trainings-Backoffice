@@ -282,6 +282,7 @@
                 <div id="adminNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
                     <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
+                    <a href="#" onclick="showSection('training-applications')" data-section="training-applications">Trainer-Bewerbungen</a>
                 </div>
                 <div id="trainerNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Trainer Portal</small>
@@ -435,6 +436,31 @@
                                     <tr><th>Benutzername</th><th>Email</th><th>Rolle</th><th>Status</th><th>Trainer-Profil</th><th>Aktionen</th></tr>
                                 </thead>
                                 <tbody id="usersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Applications (Admin only) -->
+                <div id="section-training-applications" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Trainer-Bewerbungen für Trainings
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Trainer</th>
+                                        <th>Training</th>
+                                        <th>Tagessatz</th>
+                                        <th>Nachricht</th>
+                                        <th>Status</th>
+                                        <th>Datum</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trainingApplicationsTable"></tbody>
                             </table>
                         </div>
                     </div>
@@ -886,6 +912,7 @@
             else if (name === 'brands') loadBrands();
             else if (name === 'locations') loadLocations();
             else if (name === 'users') loadUsers();
+            else if (name === 'training-applications') loadTrainingApplications();
             else if (name === 'trainer-dashboard') loadTrainerDashboard();
             else if (name === 'my-profile') loadMyProfile();
             else if (name === 'open-trainings') loadOpenTrainings();
@@ -1255,6 +1282,88 @@
                 return;
             }
             loadUsers();
+        }
+
+        async function loadTrainingApplications() {
+            if (currentUser.role !== 'admin' && currentUser.role !== 'backoffice_user') {
+                document.getElementById('trainingApplicationsTable').innerHTML = '<tr><td colspan="7">Keine Berechtigung</td></tr>';
+                return;
+            }
+
+            try {
+                const res = await apiCall('/admin/training-applications');
+                if (!res.ok) {
+                    document.getElementById('trainingApplicationsTable').innerHTML = '<tr><td colspan="7">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const applications = await res.json();
+
+                if (applications.length === 0) {
+                    document.getElementById('trainingApplicationsTable').innerHTML = '<tr><td colspan="7">Keine Bewerbungen vorhanden</td></tr>';
+                    return;
+                }
+
+                document.getElementById('trainingApplicationsTable').innerHTML = applications.map(app => `
+                    <tr>
+                        <td>
+                            <strong>${app.trainer_name}</strong><br>
+                            <small style="color: #6c757d;">${app.trainer_email || ''}</small>
+                        </td>
+                        <td>${app.training_title}</td>
+                        <td>${app.proposed_rate ? app.proposed_rate + ' €' : '-'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${app.message || '-'}</td>
+                        <td>
+                            <span class="badge" style="background: ${app.status === 'pending' ? '#ffc107' : app.status === 'accepted' ? '#28a745' : '#dc3545'}; color: ${app.status === 'pending' ? '#000' : '#fff'}; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem;">
+                                ${app.status === 'pending' ? 'Offen' : app.status === 'accepted' ? 'Akzeptiert' : 'Abgelehnt'}
+                            </span>
+                        </td>
+                        <td>${app.created_at ? new Date(app.created_at).toLocaleDateString('de') : '-'}</td>
+                        <td>
+                            ${app.status === 'pending' ? `
+                                <button class="btn btn-sm btn-success" onclick="acceptTrainingApplication(${app.id})" style="margin-right: 0.25rem;">Akzeptieren</button>
+                                <button class="btn btn-sm btn-danger" onclick="rejectTrainingApplication(${app.id})">Ablehnen</button>
+                            ` : '-'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading training applications:', error);
+                document.getElementById('trainingApplicationsTable').innerHTML = '<tr><td colspan="7">Fehler beim Laden</td></tr>';
+            }
+        }
+
+        async function acceptTrainingApplication(appId) {
+            if (!confirm('Bewerbung akzeptieren und Trainer dem Training zuweisen?')) return;
+
+            const res = await apiCall(`/admin/training-applications/${appId}/accept`, {
+                method: 'POST'
+            });
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                alert(error.error || 'Fehler beim Akzeptieren');
+                return;
+            }
+
+            const result = await res.json();
+            alert(result.message || 'Bewerbung akzeptiert');
+            loadTrainingApplications();
+        }
+
+        async function rejectTrainingApplication(appId) {
+            if (!confirm('Bewerbung wirklich ablehnen?')) return;
+
+            const res = await apiCall(`/admin/training-applications/${appId}/reject`, {
+                method: 'POST'
+            });
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                alert(error.error || 'Fehler beim Ablehnen');
+                return;
+            }
+
+            loadTrainingApplications();
         }
 
         async function apiCall(endpoint, options = {}) {
