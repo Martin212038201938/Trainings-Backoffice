@@ -103,6 +103,7 @@ class Trainer(Base, TimestampMixin):
     address = Column(Text)
     vat_number = Column(String(100))
     linkedin_url = Column(String(500))
+    website = Column(String(500))
     photo_path = Column(String(500))
     default_day_rate = Column(Float)
     preferred_topics = Column(Text)

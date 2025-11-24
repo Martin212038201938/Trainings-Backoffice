@@ -341,15 +341,75 @@ def list_users():
     skip = request.args.get('skip', 0, type=int)
     limit = request.args.get('limit', 100, type=int)
 
-    users = get_db().query(User).offset(skip).limit(limit).all()
+    db = get_db()
+    users = db.query(User).offset(skip).limit(limit).all()
 
-    return jsonify([{
-        "id": u.id,
-        "username": u.username,
-        "email": u.email,
-        "role": u.role,
-        "is_active": u.is_active
-    } for u in users])
+    # Get trainer info for each user
+    result = []
+    for u in users:
+        trainer = db.query(Trainer).filter(Trainer.user_id == u.id).first()
+        result.append({
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "role": u.role,
+            "is_active": u.is_active,
+            "trainer_id": trainer.id if trainer else None,
+            "trainer_name": trainer.name if trainer else None
+        })
+
+    return jsonify(result)
+
+
+@app.route('/auth/users/<int:user_id>/link-trainer', methods=['POST'])
+@admin_required
+def link_user_to_trainer(user_id):
+    """Link a user account to a trainer profile."""
+    db = get_db()
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    data = request.get_json() or {}
+    trainer_id = data.get('trainer_id')
+
+    if trainer_id:
+        trainer = db.query(Trainer).filter(Trainer.id == trainer_id).first()
+        if not trainer:
+            return jsonify({'error': 'Trainer not found'}), 404
+
+        # Check if trainer is already linked to another user
+        existing = db.query(Trainer).filter(
+            Trainer.user_id != None,
+            Trainer.user_id != user_id,
+            Trainer.id == trainer_id
+        ).first()
+        if existing:
+            return jsonify({'error': 'Trainer already linked to another user'}), 400
+
+        # Unlink any existing trainer from this user
+        old_trainer = db.query(Trainer).filter(Trainer.user_id == user_id).first()
+        if old_trainer:
+            old_trainer.user_id = None
+
+        # Link new trainer
+        trainer.user_id = user_id
+        db.commit()
+
+        return jsonify({
+            "message": "Trainer linked successfully",
+            "trainer_id": trainer.id,
+            "trainer_name": trainer.name
+        })
+    else:
+        # Unlink trainer
+        trainer = db.query(Trainer).filter(Trainer.user_id == user_id).first()
+        if trainer:
+            trainer.user_id = None
+            db.commit()
+
+        return jsonify({"message": "Trainer unlinked successfully"})
 
 
 @app.route('/auth/users/<int:user_id>', methods=['DELETE'])
@@ -605,6 +665,7 @@ def trainer_to_dict(t):
     """Convert trainer model to dictionary."""
     return {
         "id": t.id,
+        "user_id": t.user_id,
         "first_name": t.first_name,
         "last_name": t.last_name,
         "name": t.name,
@@ -613,6 +674,7 @@ def trainer_to_dict(t):
         "address": t.address,
         "vat_number": t.vat_number,
         "linkedin_url": t.linkedin_url,
+        "website": t.website,
         "photo_path": t.photo_path,
         "specializations": t.specializations or {"selected": [], "custom": []},
         "bio": t.bio,
@@ -653,6 +715,7 @@ def create_trainer():
             address=data.get('address'),
             vat_number=data.get('vat_number'),
             linkedin_url=data.get('linkedin_url'),
+            website=data.get('website'),
             specializations=data.get('specializations'),
             bio=data.get('bio'),
             notes=data.get('notes'),
@@ -893,8 +956,18 @@ def trainer_dashboard():
 
     # Find trainer linked to this user
     trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+
+    # If not found by user_id, try to find by email and auto-link
     if not trainer:
-        return jsonify({'error': 'No trainer profile linked to this account'}), 404
+        trainer = db.query(Trainer).filter(Trainer.email == g.current_user.email).first()
+        if trainer:
+            # Auto-link trainer to user
+            trainer.user_id = g.current_user.id
+            db.commit()
+            logger.info(f"Auto-linked trainer {trainer.id} to user {g.current_user.id}")
+
+    if not trainer:
+        return jsonify({'error': 'No trainer profile linked to this account. Please contact admin.'}), 404
 
     # Get trainer's trainings
     my_trainings = db.query(Training).filter(Training.trainer_id == trainer.id).all()
@@ -946,8 +1019,14 @@ def get_open_trainings():
 
     db = get_db()
 
-    # Find trainer linked to this user
+    # Find trainer linked to this user (with auto-link by email)
     trainer = db.query(Trainer).filter(Trainer.user_id == g.current_user.id).first()
+    if not trainer:
+        trainer = db.query(Trainer).filter(Trainer.email == g.current_user.email).first()
+        if trainer:
+            trainer.user_id = g.current_user.id
+            db.commit()
+
     if not trainer:
         return jsonify({'error': 'No trainer profile linked'}), 404
 
