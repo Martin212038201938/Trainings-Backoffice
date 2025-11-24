@@ -269,12 +269,18 @@
                         <input type="text" name="specializations" placeholder="z.B. Agile, Scrum, Leadership">
                     </div>
                     <div class="form-group">
-                        <label>LinkedIn URL</label>
-                        <input type="url" name="linkedin_url" placeholder="https://linkedin.com/in/...">
+                        <label>LinkedIn Profil</label>
+                        <div style="display: flex; align-items: center;">
+                            <span style="background: #e9ecef; padding: 0.5rem; border: 1px solid #ced4da; border-right: none; border-radius: 4px 0 0 4px; font-size: 0.85rem; white-space: nowrap;">linkedin.com/in/</span>
+                            <input type="text" name="linkedin_url" placeholder="ihr-profil" style="border-radius: 0 4px 4px 0; flex: 1;">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Website</label>
-                        <input type="url" name="website" placeholder="https://...">
+                        <div style="display: flex; align-items: center;">
+                            <span style="background: #e9ecef; padding: 0.5rem; border: 1px solid #ced4da; border-right: none; border-radius: 4px 0 0 4px; font-size: 0.85rem; white-space: nowrap;">https://</span>
+                            <input type="text" name="website" placeholder="www.ihre-website.de" style="border-radius: 0 4px 4px 0; flex: 1;">
+                        </div>
                     </div>
                 </fieldset>
 
@@ -641,12 +647,18 @@
 
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                     <div class="form-group">
-                                        <label>LinkedIn URL</label>
-                                        <input type="url" name="linkedin_url" id="profile_linkedin_url" style="width:100%;padding:0.5rem;" placeholder="https://linkedin.com/in/...">
+                                        <label>LinkedIn Profil</label>
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="background: #e9ecef; padding: 0.5rem; border: 1px solid #ced4da; border-right: none; border-radius: 4px 0 0 4px; font-size: 0.85rem; white-space: nowrap;">linkedin.com/in/</span>
+                                            <input type="text" name="linkedin_url" id="profile_linkedin_url" placeholder="ihr-profil" style="padding:0.5rem; border-radius: 0 4px 4px 0; flex: 1;">
+                                        </div>
                                     </div>
                                     <div class="form-group">
                                         <label>Website</label>
-                                        <input type="url" name="website" id="profile_website" style="width:100%;padding:0.5rem;" placeholder="https://...">
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="background: #e9ecef; padding: 0.5rem; border: 1px solid #ced4da; border-right: none; border-radius: 4px 0 0 4px; font-size: 0.85rem; white-space: nowrap;">https://</span>
+                                            <input type="text" name="website" id="profile_website" placeholder="www.ihre-website.de" style="padding:0.5rem; border-radius: 0 4px 4px 0; flex: 1;">
+                                        </div>
                                     </div>
                                 </div>
 
@@ -829,6 +841,31 @@
         const API_URL = '';
         let token = localStorage.getItem('token');
         let currentUser = null;
+
+        // URL formatting helpers
+        function formatLinkedInUrl(value) {
+            if (!value) return '';
+            // Remove any existing prefix
+            value = value.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//i, '');
+            return value ? 'https://linkedin.com/in/' + value : '';
+        }
+
+        function formatWebsiteUrl(value) {
+            if (!value) return '';
+            // Remove any existing prefix
+            value = value.replace(/^https?:\/\//i, '');
+            return value ? 'https://' + value : '';
+        }
+
+        function stripLinkedInPrefix(url) {
+            if (!url) return '';
+            return url.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//i, '');
+        }
+
+        function stripWebsitePrefix(url) {
+            if (!url) return '';
+            return url.replace(/^https?:\/\//i, '');
+        }
 
         // Check if logged in
         if (token) {
@@ -1087,8 +1124,8 @@
                 city: formData.get('city'),
                 vat_number: formData.get('vat_number'),
                 bank_account: formData.get('bank_account'),
-                linkedin_url: formData.get('linkedin_url'),
-                website: formData.get('website'),
+                linkedin_url: formatLinkedInUrl(formData.get('linkedin_url')),
+                website: formatWebsiteUrl(formData.get('website')),
                 region: formData.get('region'),
                 additional_info: formData.get('additional_info'),
                 specializations: formData.get('specializations'),
@@ -1400,8 +1437,8 @@
                 document.getElementById('profile_city').value = trainer.city || '';
                 document.getElementById('profile_vat_number').value = trainer.vat_number || '';
                 document.getElementById('profile_bank_account').value = trainer.bank_account || '';
-                document.getElementById('profile_linkedin_url').value = trainer.linkedin_url || '';
-                document.getElementById('profile_website').value = trainer.website || '';
+                document.getElementById('profile_linkedin_url').value = stripLinkedInPrefix(trainer.linkedin_url || '');
+                document.getElementById('profile_website').value = stripWebsitePrefix(trainer.website || '');
                 document.getElementById('profile_region').value = trainer.region || '';
                 document.getElementById('profile_additional_info').value = trainer.additional_info || '';
                 document.getElementById('profile_notes').value = trainer.notes || '';
@@ -1594,8 +1631,8 @@
                         city: document.getElementById('profile_city').value,
                         vat_number: document.getElementById('profile_vat_number').value,
                         bank_account: document.getElementById('profile_bank_account').value,
-                        linkedin_url: document.getElementById('profile_linkedin_url').value,
-                        website: document.getElementById('profile_website').value,
+                        linkedin_url: formatLinkedInUrl(document.getElementById('profile_linkedin_url').value),
+                        website: formatWebsiteUrl(document.getElementById('profile_website').value),
                         region: document.getElementById('profile_region').value,
                         additional_info: document.getElementById('profile_additional_info').value,
                         notes: document.getElementById('profile_notes').value,
