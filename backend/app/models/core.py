@@ -284,9 +284,9 @@ class Location(Base, TimestampMixin):
 APPLICATION_STATUSES = ("pending", "approved", "rejected")
 
 
-class TrainerApplication(Base, TimestampMixin):
-    """Trainer applications from prospective trainers."""
-    __tablename__ = "trainer_applications"
+class TrainerRegistration(Base, TimestampMixin):
+    """Trainer registration applications from prospective trainers."""
+    __tablename__ = "trainer_registrations"
 
     id = Column(Integer, primary_key=True, index=True)
 
