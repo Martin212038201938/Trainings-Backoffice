@@ -63,13 +63,29 @@ class Customer(Base, TimestampMixin):
 
     id = Column(Integer, primary_key=True, index=True)
     company_name = Column(String(255), nullable=False)
-    contact_name = Column(String(255))
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    salutation = Column(String(20))  # Frau, Herr, ---
     contact_email = Column(String(255))
     contact_phone = Column(String(100))
-    billing_address = Column(Text)
+    vat_number = Column(String(100))
+    # Billing address fields
+    street = Column(String(255))
+    street_number = Column(String(20))
+    postal_code = Column(String(20))
+    city = Column(String(100))
+    billing_address = Column(Text)  # Legacy field
+    conditions = Column(Text)  # Konditionen
+    comment = Column(Text)  # Kommentar
     tags = Column(String(255))
     notes = Column(Text)
     status = Column(String(50), default="lead")
+
+    @property
+    def contact_name(self):
+        """Legacy property for backwards compatibility."""
+        parts = [self.first_name or '', self.last_name or '']
+        return ' '.join(p for p in parts if p).strip() or None
 
     brands = relationship("Brand", secondary=customer_brands, backref="customers")
     trainings = relationship("Training", back_populates="customer")
