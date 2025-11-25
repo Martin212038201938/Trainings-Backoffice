@@ -1,1 +1,1 @@
-from . import brands, catalog, customers, search, tasks, trainers, trainings  # noqa: F401
+from . import auth, brands, catalog, customers, emails, search, tasks, trainers, trainings  # noqa: F401
