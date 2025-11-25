@@ -9,6 +9,7 @@ from ..core.deps import get_current_active_user, get_db, require_backoffice
 from ..database import SessionLocal
 from ..models import Brand, Trainer, User
 from ..schemas.base import TrainerCreate, TrainerRead
+from ..utils.search import escape_like_wildcards
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,9 @@ def list_trainers(
     """List all trainers."""
     query = db.query(Trainer)
     if search:
-        like = f"%{search.lower()}%"
+        # Escape LIKE wildcards to prevent injection
+        escaped_search = escape_like_wildcards(search.lower())
+        like = f"%{escaped_search}%"
         query = query.filter(
             (func.lower(Trainer.last_name).like(like))
             | (func.lower(Trainer.first_name).like(like))
