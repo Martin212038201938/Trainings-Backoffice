@@ -2027,21 +2027,25 @@ def list_users_for_messaging():
 # ========== TRAINER APPLICATION ROUTES ==========
 
 def application_to_dict(app):
-    """Convert trainer application to dictionary."""
+    """Convert trainer registration/application to dictionary."""
     return {
         "id": app.id,
         "email": app.email,
         "first_name": app.first_name,
         "last_name": app.last_name,
         "phone": app.phone,
-        "address": app.address,
+        "street": app.street,
+        "house_number": app.house_number,
+        "postal_code": app.postal_code,
+        "city": app.city,
         "vat_number": app.vat_number,
+        "bank_account": app.bank_account,
         "linkedin_url": app.linkedin_url,
         "website": app.website,
-        "default_day_rate": app.default_day_rate,
         "region": app.region,
-        "bio": app.bio,
+        "additional_info": app.additional_info,
         "specializations": app.specializations,
+        "proposed_trainings": app.proposed_trainings,
         "photo_url": app.photo_url,
         "status": app.status,
         "created_at": app.created_at.isoformat() if app.created_at else None,
