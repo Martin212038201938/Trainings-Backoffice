@@ -89,7 +89,7 @@ jobs:
           echo "========================================"
           echo "✅ Deployment completed successfully!"
           echo "========================================"
-          echo "Application URL: https://bo.yellow-plane.com"
+          echo "Application URL: https://yellow-boat.org"
           echo "Deployment time: \$(date)"
           echo "Latest commit: \$(git log -1 --oneline 2>/dev/null || echo 'N/A')"
           ENDSSH
@@ -99,7 +99,7 @@ jobs:
           max_attempts=30
           attempt=0
           while [ $attempt -lt $max_attempts ]; do
-            if curl -sf --connect-timeout 3 --max-time 5 https://bo.yellow-plane.com 2>/dev/null; then
+            if curl -sf --connect-timeout 3 --max-time 5 https://yellow-boat.org 2>/dev/null; then
               echo "✅ Application is online and responding!"
               exit 0
             fi
@@ -120,6 +120,6 @@ jobs:
           echo "Repository: Martin212038201938/Trainings-Backoffice"
           echo "Branch: main"
           echo "Commit: ${{ github.sha }}"
-          echo "Application: https://bo.yellow-plane.com"
+          echo "Application: https://yellow-boat.org"
           echo "Status: Live"
           echo "========================================"

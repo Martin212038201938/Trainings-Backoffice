@@ -21,7 +21,7 @@ Comprehensive deployment guide for the Trainings Backoffice FastAPI application 
 ### AlwaysData Account
 - **Site ID**: #993983
 - **Site Type**: Python WSGI
-- **Domain**: bo.yellow-plane.com
+- **Domain**: yellow-boat.org
 - **SSH Access**: Required for deployment
 
 ### Required Software (on AlwaysData)
@@ -114,7 +114,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # CORS Configuration
-CORS_ORIGINS=https://bo.yellow-plane.com
+CORS_ORIGINS=https://yellow-boat.org
 
 # OpenAI API (optional)
 OPENAI_API_KEY=your-openai-key-here
@@ -268,8 +268,8 @@ poetry run alembic upgrade head
 supervisorctl restart trainings-backoffice
 
 # 7. Verify deployment
-curl https://bo.yellow-plane.com/health
-curl https://bo.yellow-plane.com/version
+curl https://yellow-boat.org/health
+curl https://yellow-boat.org/version
 ```
 
 ### Zero-Downtime Deployment
@@ -371,7 +371,7 @@ poetry run alembic stamp head  # Use with caution!
 **Test**:
 ```bash
 # Test login endpoint
-curl -X POST https://bo.yellow-plane.com/auth/login \
+curl -X POST https://yellow-boat.org/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=admin&password=admin123456"
 ```
@@ -473,7 +473,7 @@ poetry run alembic downgrade <revision>
 
 **Primary health check**:
 ```bash
-curl https://bo.yellow-plane.com/health
+curl https://yellow-boat.org/health
 ```
 
 Expected response:
@@ -491,7 +491,7 @@ Expected response:
 
 **Version info**:
 ```bash
-curl https://bo.yellow-plane.com/version
+curl https://yellow-boat.org/version
 ```
 
 ### Monitoring Checklist

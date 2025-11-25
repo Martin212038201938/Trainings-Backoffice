@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
     # CORS settings
-    cors_origins: list[str] = ["https://bo.yellow-plane.com", "http://localhost:3000"]
+    cors_origins: list[str] = ["https://yellow-boat.org", "http://localhost:3000"]
 
     # Email settings
     smtp_host: str = ""
