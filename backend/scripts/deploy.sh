@@ -99,7 +99,7 @@ echo -e "${BLUE}Step 6/6: Running health check...${NC}"
 sleep 5  # Wait for application to start
 
 # Try to hit the health endpoint
-HEALTH_URL="https://bo.yellow-plane.com/health"
+HEALTH_URL="https://yellow-boat.org/health"
 if command -v curl &> /dev/null; then
     if curl -f -s "$HEALTH_URL" > /dev/null; then
         echo -e "${GREEN}✅ Health check passed!${NC}"

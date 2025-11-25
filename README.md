@@ -204,7 +204,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # CORS
-CORS_ORIGINS=https://bo.yellow-plane.com
+CORS_ORIGINS=https://yellow-boat.org
 
 # Optional
 OPENAI_API_KEY=your-key-here
@@ -235,7 +235,7 @@ OPENAI_API_KEY=your-key-here
 | Catalog | `/catalog/*` | Backoffice+ (write), All (read) |
 | Search | `/search` | All authenticated users |
 
-Vollständige API-Dokumentation: https://bo.yellow-plane.com/docs
+Vollständige API-Dokumentation: https://yellow-boat.org/docs
 
 ## Database Migrations
 
@@ -285,10 +285,10 @@ poetry run ruff check app/
 
 ```bash
 # Application health with DB check
-curl https://bo.yellow-plane.com/health
+curl https://yellow-boat.org/health
 
 # Version and build info
-curl https://bo.yellow-plane.com/version
+curl https://yellow-boat.org/version
 ```
 
 ### Logs
@@ -392,7 +392,7 @@ Proprietary - All rights reserved.
 
 Für Fragen oder Probleme:
 - Deployment-Probleme: siehe [DEPLOYMENT.md](./DEPLOYMENT.md)
-- API-Dokumentation: https://bo.yellow-plane.com/docs
+- API-Dokumentation: https://yellow-boat.org/docs
 - GitHub Issues: https://github.com/Martin212038201938/Trainings-Backoffice/issues
 
 ---
