@@ -1139,7 +1139,16 @@
                     body: JSON.stringify(data)
                 });
 
-                const result = await res.json();
+                let result;
+                try {
+                    result = await res.json();
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    const text = await res.text();
+                    console.error('Response text:', text);
+                    document.getElementById('applicationError2').textContent = 'Server-Fehler: Ungültige Antwort (Status: ' + res.status + ')';
+                    return;
+                }
 
                 if (res.ok) {
                     alert('Ihre Bewerbung wurde erfolgreich eingereicht! Sie erhalten eine Benachrichtigung, sobald Ihre Bewerbung geprüft wurde.');
@@ -1148,10 +1157,12 @@
                     applicationStep1Data = {};
                     showLoginForm();
                 } else {
+                    console.error('Application error:', result);
                     document.getElementById('applicationError2').textContent = result.error || 'Fehler beim Einreichen der Bewerbung';
                 }
             } catch (err) {
-                document.getElementById('applicationError2').textContent = 'Verbindungsfehler';
+                console.error('Error submitting application:', err);
+                document.getElementById('applicationError2').textContent = 'Verbindungsfehler: ' + err.message;
             }
         });
 
