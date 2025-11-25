@@ -44,5 +44,10 @@ class Settings(BaseSettings):
     platform_email_domain: str = "yellow-boat.org"
     frontend_base_url: str = "https://yellow-boat.org"
 
+    # AlwaysData API settings for automatic email creation
+    alwaysdata_api_key: str = ""
+    alwaysdata_account: str = "y-b"
+    alwaysdata_domain_id: int = 0  # Set to your domain ID in AlwaysData
+
 
 settings = Settings()

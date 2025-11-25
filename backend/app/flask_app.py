@@ -2273,17 +2273,48 @@ def approve_trainer_application(app_id):
     application.reviewed_at = datetime.utcnow()
     application.reviewed_by = g.current_user.id
 
+    # Try to create platform email via AlwaysData API
+    platform_email = None
+    email_password = None
+    try:
+        from .services.alwaysdata import create_user_mailbox, send_credentials_email
+
+        # Get list of existing platform emails to avoid duplicates
+        existing_emails = [u.platform_email for u in db.query(User).filter(User.platform_email.isnot(None)).all()]
+
+        success, platform_email, email_password = create_user_mailbox(
+            application.last_name,
+            existing_emails=existing_emails
+        )
+
+        if success and platform_email:
+            user.platform_email = platform_email
+            user.first_name = application.first_name
+            user.last_name = application.last_name
+            logging.info(f"Created platform email {platform_email} for user {user.username}")
+    except Exception as e:
+        logging.warning(f"Could not create platform email: {e}")
+
     db.commit()
 
     # Send acceptance email to trainer
     trainer_name = f"{application.first_name} {application.last_name}"
     send_trainer_application_accepted(application.email, trainer_name)
 
+    # If platform email was created, send credentials
+    if platform_email and email_password:
+        try:
+            from .services.alwaysdata import send_credentials_email
+            send_credentials_email(application.email, platform_email, email_password, trainer_name)
+        except Exception as e:
+            logging.warning(f"Could not send credentials email: {e}")
+
     return jsonify({
         "status": "success",
-        "message": "Trainer erfolgreich angelegt",
+        "message": "Trainer erfolgreich angelegt" + (f" mit E-Mail {platform_email}" if platform_email else ""),
         "user_id": user.id,
-        "trainer_id": trainer.id
+        "trainer_id": trainer.id,
+        "platform_email": platform_email
     })
 
 
