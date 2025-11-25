@@ -2052,82 +2052,82 @@ def application_to_dict(app):
 @app.route('/trainer/apply', methods=['POST'])
 def submit_trainer_application():
     """Submit a trainer application (no auth required)."""
-    db = get_db()
-    data = request.get_json()
+    try:
+        db = get_db()
+        data = request.get_json()
 
-    # Check if email already exists
-    existing_app = db.query(TrainerRegistration).filter(
-        TrainerRegistration.email == data.get('email')
-    ).first()
-    if existing_app:
-        return jsonify({"error": "Es gibt bereits eine Bewerbung mit dieser E-Mail-Adresse"}), 400
+        # Check if email already exists
+        existing_app = db.query(TrainerRegistration).filter(
+            TrainerRegistration.email == data.get('email')
+        ).first()
+        if existing_app:
+            return jsonify({"error": "Es gibt bereits eine Bewerbung mit dieser E-Mail-Adresse"}), 400
 
-    existing_user = db.query(User).filter(User.email == data.get('email')).first()
-    if existing_user:
-        return jsonify({"error": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"}), 400
+        existing_user = db.query(User).filter(User.email == data.get('email')).first()
+        if existing_user:
+            return jsonify({"error": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"}), 400
 
-    # Create application
-    proposed_trainings = data.get('proposed_trainings', [])
+        # Create application
+        proposed_trainings = data.get('proposed_trainings', [])
 
-    application = TrainerRegistration(
-        email=data.get('email'),
-        password_hash=get_password_hash(data.get('password')),
-        first_name=data.get('first_name'),
-        last_name=data.get('last_name'),
-        phone=data.get('phone'),
-        street=data.get('street'),
-        house_number=data.get('house_number'),
-        postal_code=data.get('postal_code'),
-        city=data.get('city'),
-        vat_number=data.get('vat_number'),
-        bank_account=data.get('bank_account'),
-        linkedin_url=data.get('linkedin_url'),
-        website=data.get('website'),
-        region=data.get('region'),
-        additional_info=data.get('additional_info'),
-        specializations=data.get('specializations'),
-        proposed_trainings=json.dumps(proposed_trainings) if proposed_trainings else None,
-        status='pending'
-    )
+        application = TrainerRegistration(
+            email=data.get('email'),
+            password_hash=get_password_hash(data.get('password')),
+            first_name=data.get('first_name'),
+            last_name=data.get('last_name'),
+            phone=data.get('phone'),
+            street=data.get('street'),
+            house_number=data.get('house_number'),
+            postal_code=data.get('postal_code'),
+            city=data.get('city'),
+            vat_number=data.get('vat_number'),
+            bank_account=data.get('bank_account'),
+            linkedin_url=data.get('linkedin_url'),
+            website=data.get('website'),
+            region=data.get('region'),
+            additional_info=data.get('additional_info'),
+            specializations=data.get('specializations'),
+            proposed_trainings=json.dumps(proposed_trainings) if proposed_trainings else None,
+            status='pending'
+        )
 
-    db.add(application)
-    db.commit()
-    db.refresh(application)
+        db.add(application)
+        db.commit()
+        db.refresh(application)
 
-    # Create notification message for all admins and backoffice users
-    admin_users = db.query(User).filter(
-        User.role.in_(['admin', 'backoffice_user']),
-        User.is_active == True
-    ).all()
+        # Create notification message for all admins and backoffice users
+        admin_users = db.query(User).filter(
+            User.role.in_(['admin', 'backoffice_user']),
+            User.is_active == True
+        ).all()
 
-    # Create a system message for each admin/backoffice user
-    for admin in admin_users:
-        # Format address
-        address_parts = [p for p in [application.street, application.house_number] if p]
-        address_line1 = ' '.join(address_parts) if address_parts else ''
-        address_parts2 = [p for p in [application.postal_code, application.city] if p]
-        address_line2 = ' '.join(address_parts2) if address_parts2 else ''
-        full_address = f"{address_line1}, {address_line2}" if address_line1 and address_line2 else (address_line1 or address_line2 or 'Nicht angegeben')
+        # Create a system message for each admin/backoffice user
+        for admin in admin_users:
+            # Format address
+            address_parts = [p for p in [application.street, application.house_number] if p]
+            address_line1 = ' '.join(address_parts) if address_parts else ''
+            address_parts2 = [p for p in [application.postal_code, application.city] if p]
+            address_line2 = ' '.join(address_parts2) if address_parts2 else ''
+            full_address = f"{address_line1}, {address_line2}" if address_line1 and address_line2 else (address_line1 or address_line2 or 'Nicht angegeben')
 
-        # Format trainings
-        trainings_text = 'Keine Trainings angegeben'
-        if application.proposed_trainings:
-            import json
-            trainings = json.loads(application.proposed_trainings)
-            if trainings:
-                trainings_list = []
-                for i, t in enumerate(trainings, 1):
-                    duration_text = f"{t.get('duration', '')} {t.get('duration_unit', '')}"
-                    materials = "Ja" if t.get('materials_available') else "Nein"
-                    trainings_list.append(f"{i}. {t.get('title', 'Ohne Titel')}\n   - Beschreibung: {t.get('description', '-')}\n   - Dauer: {duration_text}\n   - Materialien vorhanden: {materials}\n   - Zielgruppe: {t.get('target_audience', '-')}\n   - Angebotspreis: {t.get('price', '-')} EUR")
-                trainings_text = '\n'.join(trainings_list)
+            # Format trainings
+            trainings_text = 'Keine Trainings angegeben'
+            if application.proposed_trainings:
+                trainings = json.loads(application.proposed_trainings)
+                if trainings:
+                    trainings_list = []
+                    for i, t in enumerate(trainings, 1):
+                        duration_text = f"{t.get('duration', '')} {t.get('duration_unit', '')}"
+                        materials = "Ja" if t.get('materials_available') else "Nein"
+                        trainings_list.append(f"{i}. {t.get('title', 'Ohne Titel')}\n   - Beschreibung: {t.get('description', '-')}\n   - Dauer: {duration_text}\n   - Materialien vorhanden: {materials}\n   - Zielgruppe: {t.get('target_audience', '-')}\n   - Angebotspreis: {t.get('price', '-')} EUR")
+                    trainings_text = '\n'.join(trainings_list)
 
-        message = Message(
-            sender_id=admin.id,  # System message, sender = recipient
-            recipient_id=admin.id,
-            message_type='trainer_application',
-            subject=f"Neue Trainerbewerbung: {application.first_name} {application.last_name}",
-            content=f"""Neue Trainerbewerbung eingegangen:
+            message = Message(
+                sender_id=admin.id,  # System message, sender = recipient
+                recipient_id=admin.id,
+                message_type='trainer_application',
+                subject=f"Neue Trainerbewerbung: {application.first_name} {application.last_name}",
+                content=f"""Neue Trainerbewerbung eingegangen:
 
 Name: {application.first_name} {application.last_name}
 E-Mail: {application.email}
@@ -2151,28 +2151,32 @@ Website: {application.website or 'Nicht angegeben'}
 
 ---
 Application ID: {application.id}""",
-            status='open',
-            is_read=False
-        )
-        db.add(message)
-
-    db.commit()
-
-    # Send confirmation email to trainer
-    trainer_name = f"{application.first_name} {application.last_name}"
-    send_trainer_application_received(application.email, trainer_name)
-
-    # Send notification email to admins
-    for admin in admin_users:
-        if admin.email:
-            send_new_application_admin_notification(
-                admin.email,
-                trainer_name,
-                application.email,
-                application.id
+                status='open',
+                is_read=False
             )
+            db.add(message)
 
-    return jsonify({"status": "success", "message": "Bewerbung erfolgreich eingereicht", "id": application.id}), 201
+        db.commit()
+
+        # Send confirmation email to trainer
+        trainer_name = f"{application.first_name} {application.last_name}"
+        send_trainer_application_received(application.email, trainer_name)
+
+        # Send notification email to admins
+        for admin in admin_users:
+            if admin.email:
+                send_new_application_admin_notification(
+                    admin.email,
+                    trainer_name,
+                    application.email,
+                    application.id
+                )
+
+        return jsonify({"status": "success", "message": "Bewerbung erfolgreich eingereicht", "id": application.id}), 201
+
+    except Exception as e:
+        logging.error(f"Error submitting trainer application: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Fehler beim Einreichen der Bewerbung: {str(e)}"}), 500
 
 
 @app.route('/trainer/applications')
