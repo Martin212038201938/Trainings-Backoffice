@@ -9,6 +9,7 @@ from ..database import SessionLocal
 from ..models import Brand, Customer, User
 from ..schemas.base import CustomerCreate, CustomerRead
 from ..services.ai import summarize_notes
+from ..utils.search import escape_like_wildcards
 
 router = APIRouter()
 
@@ -24,7 +25,9 @@ def list_customers(
     if brand_id:
         query = query.filter(Customer.brands.any(Brand.id == brand_id))
     if search:
-        like = f"%{search.lower()}%"
+        # Escape LIKE wildcards to prevent injection
+        escaped_search = escape_like_wildcards(search.lower())
+        like = f"%{escaped_search}%"
         query = query.filter(func.lower(Customer.company_name).like(like))
     return query.order_by(Customer.company_name).all()
 

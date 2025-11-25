@@ -1,9 +1,36 @@
 #!/bin/bash
 # Setup script for production email configuration
 # Run this on the AlwaysData server via SSH
+#
+# SECURITY NOTE: This script requires environment variables to be set.
+# DO NOT hardcode secrets in this file!
+#
+# Required environment variables (set these before running):
+#   SMTP_PASSWORD - The SMTP password for the email account
+#   ALWAYSDATA_API_KEY - The AlwaysData API key
+#
+# Example usage:
+#   export SMTP_PASSWORD="your_smtp_password_here"
+#   export ALWAYSDATA_API_KEY="your_api_key_here"
+#   ./setup_production_email.sh
 
 echo "=== Yellow-Boat Email Setup ==="
 echo ""
+
+# Check required environment variables
+if [ -z "$SMTP_PASSWORD" ]; then
+    echo "ERROR: SMTP_PASSWORD environment variable is not set!"
+    echo "Please set it before running this script:"
+    echo "  export SMTP_PASSWORD='your_password_here'"
+    exit 1
+fi
+
+if [ -z "$ALWAYSDATA_API_KEY" ]; then
+    echo "ERROR: ALWAYSDATA_API_KEY environment variable is not set!"
+    echo "Please set it before running this script:"
+    echo "  export ALWAYSDATA_API_KEY='your_api_key_here'"
+    exit 1
+fi
 
 cd /home/y-b/trainings-backoffice/backend
 
@@ -13,21 +40,21 @@ if [ -f .env ]; then
     echo "✓ Backup der .env erstellt"
 fi
 
-# Add email configuration to .env
-cat >> .env << 'ENVEOF'
+# Add email configuration to .env (secrets from environment variables)
+cat >> .env << ENVEOF
 
 # Email Settings (SMTP) - Added by setup script
 EMAIL_ENABLED=true
 SMTP_HOST=smtp-y-b.alwaysdata.net
 SMTP_PORT=587
 SMTP_USERNAME=noreply@yellow-boat.org
-SMTP_PASSWORD=YB2025!SecureNoreply#Pass
+SMTP_PASSWORD=${SMTP_PASSWORD}
 SMTP_USE_TLS=true
 SMTP_FROM_EMAIL=noreply@yellow-boat.org
 SMTP_FROM_NAME=Yellow-Boat Academy
 
 # AlwaysData API - Added by setup script
-ALWAYSDATA_API_KEY=c54e97aec93546e680e186ce20417601
+ALWAYSDATA_API_KEY=${ALWAYSDATA_API_KEY}
 ALWAYSDATA_ACCOUNT=y-b
 ALWAYSDATA_DOMAIN_ID=121892
 ENVEOF
