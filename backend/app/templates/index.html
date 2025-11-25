@@ -339,7 +339,8 @@
                 <div id="adminNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
                     <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
-                    <a href="#" onclick="showSection('training-applications')" data-section="training-applications">Trainer-Bewerbungen</a>
+                    <a href="#" onclick="showSection('trainer-registrations')" data-section="trainer-registrations">Neue Trainer</a>
+                    <a href="#" onclick="showSection('training-applications')" data-section="training-applications">Training-Bewerbungen</a>
                 </div>
                 <div id="trainerNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Trainer Portal</small>
@@ -498,7 +499,32 @@
                     </div>
                 </div>
 
-                <!-- Training Applications (Admin only) -->
+                <!-- Trainer Registrations (Admin only) - New trainers applying to join -->
+                <div id="section-trainer-registrations" class="section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header">
+                            Neue Trainer-Bewerbungen
+                        </div>
+                        <div class="card-body">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>E-Mail</th>
+                                        <th>Region</th>
+                                        <th>Spezialisierungen</th>
+                                        <th>Status</th>
+                                        <th>Datum</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trainerRegistrationsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Applications (Admin only) - Existing trainers applying for trainings -->
                 <div id="section-training-applications" class="section" style="display:none;">
                     <div class="card">
                         <div class="card-header">
@@ -1232,6 +1258,7 @@
             else if (name === 'brands') loadBrands();
             else if (name === 'locations') loadLocations();
             else if (name === 'users') loadUsers();
+            else if (name === 'trainer-registrations') loadTrainerRegistrations();
             else if (name === 'training-applications') loadTrainingApplications();
             else if (name === 'trainer-dashboard') loadTrainerDashboard();
             else if (name === 'my-profile') loadMyProfile();
@@ -1813,6 +1840,160 @@
             }
 
             loadTrainingApplications();
+        }
+
+        // ============== Trainer Registrations (New trainers applying to join) ==============
+        async function loadTrainerRegistrations() {
+            if (currentUser.role !== 'admin' && currentUser.role !== 'backoffice_user') {
+                document.getElementById('trainerRegistrationsTable').innerHTML = '<tr><td colspan="7">Keine Berechtigung</td></tr>';
+                return;
+            }
+
+            try {
+                const res = await apiCall('/trainer/applications');
+                if (!res.ok) {
+                    document.getElementById('trainerRegistrationsTable').innerHTML = '<tr><td colspan="7">Fehler beim Laden</td></tr>';
+                    return;
+                }
+                const registrations = await res.json();
+
+                if (registrations.length === 0) {
+                    document.getElementById('trainerRegistrationsTable').innerHTML = '<tr><td colspan="7">Keine neuen Bewerbungen</td></tr>';
+                    return;
+                }
+
+                document.getElementById('trainerRegistrationsTable').innerHTML = registrations.map(reg => `
+                    <tr>
+                        <td>
+                            <strong>${reg.first_name} ${reg.last_name}</strong>
+                            ${reg.photo_url ? `<br><img src="${reg.photo_url}" style="width: 40px; height: 40px; border-radius: 50%; margin-top: 0.25rem;">` : ''}
+                        </td>
+                        <td>
+                            ${reg.email}<br>
+                            <small style="color: #6c757d;">${reg.phone || ''}</small>
+                        </td>
+                        <td>${reg.region || '-'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${reg.specializations || '-'}</td>
+                        <td>
+                            <span class="badge" style="background: ${reg.status === 'pending' ? '#ffc107' : reg.status === 'approved' ? '#28a745' : '#dc3545'}; color: ${reg.status === 'pending' ? '#000' : '#fff'}; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem;">
+                                ${reg.status === 'pending' ? 'Offen' : reg.status === 'approved' ? 'Genehmigt' : 'Abgelehnt'}
+                            </span>
+                        </td>
+                        <td>${reg.created_at ? new Date(reg.created_at).toLocaleDateString('de') : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="viewTrainerRegistration(${reg.id})" style="margin-right: 0.25rem;">Details</button>
+                            ${reg.status === 'pending' ? `
+                                <button class="btn btn-sm btn-success" onclick="approveTrainerRegistration(${reg.id})" style="margin-right: 0.25rem;">Genehmigen</button>
+                                <button class="btn btn-sm btn-danger" onclick="rejectTrainerRegistration(${reg.id})">Ablehnen</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading trainer registrations:', error);
+                document.getElementById('trainerRegistrationsTable').innerHTML = '<tr><td colspan="7">Fehler beim Laden</td></tr>';
+            }
+        }
+
+        async function viewTrainerRegistration(regId) {
+            try {
+                const res = await apiCall(`/trainer/applications/${regId}`);
+                if (!res.ok) {
+                    alert('Fehler beim Laden der Bewerbung');
+                    return;
+                }
+                const reg = await res.json();
+
+                let proposedTrainings = '';
+                if (reg.proposed_trainings) {
+                    try {
+                        const trainings = JSON.parse(reg.proposed_trainings);
+                        proposedTrainings = trainings.map((t, i) => `
+                            <div style="margin-bottom: 1rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px;">
+                                <strong>${i+1}. ${t.title || 'Ohne Titel'}</strong><br>
+                                ${t.description || ''}<br>
+                                <small>Dauer: ${t.duration || '-'} ${t.duration_unit || ''} | Preis: ${t.price || '-'} €</small>
+                            </div>
+                        `).join('');
+                    } catch (e) { proposedTrainings = reg.proposed_trainings; }
+                }
+
+                alert(`
+BEWERBUNG VON: ${reg.first_name} ${reg.last_name}
+
+E-Mail: ${reg.email}
+Telefon: ${reg.phone || '-'}
+Region: ${reg.region || '-'}
+
+Adresse:
+${reg.street || ''} ${reg.house_number || ''}
+${reg.postal_code || ''} ${reg.city || ''}
+
+USt-ID: ${reg.vat_number || '-'}
+Bank: ${reg.bank_account || '-'}
+
+Spezialisierungen: ${reg.specializations || '-'}
+
+Weitere Informationen:
+${reg.additional_info || '-'}
+
+LinkedIn: ${reg.linkedin_url || '-'}
+Website: ${reg.website || '-'}
+
+Status: ${reg.status}
+Datum: ${reg.created_at ? new Date(reg.created_at).toLocaleString('de') : '-'}
+                `.trim());
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Fehler beim Laden');
+            }
+        }
+
+        async function approveTrainerRegistration(regId) {
+            if (!confirm('Bewerbung genehmigen und Trainer-Account erstellen?')) return;
+
+            try {
+                const res = await apiCall(`/trainer/applications/${regId}/approve`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) {
+                    const error = await res.json().catch(() => ({}));
+                    alert(error.error || 'Fehler beim Genehmigen');
+                    return;
+                }
+
+                const result = await res.json();
+                alert(result.message || 'Trainer erfolgreich angelegt!');
+                loadTrainerRegistrations();
+            } catch (error) {
+                console.error('Error approving registration:', error);
+                alert('Fehler beim Genehmigen der Bewerbung');
+            }
+        }
+
+        async function rejectTrainerRegistration(regId) {
+            const reason = prompt('Grund für Ablehnung (optional):');
+            if (reason === null) return; // User cancelled
+
+            try {
+                const res = await apiCall(`/trainer/applications/${regId}/reject`, {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: reason || null })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json().catch(() => ({}));
+                    alert(error.error || 'Fehler beim Ablehnen');
+                    return;
+                }
+
+                alert('Bewerbung abgelehnt');
+                loadTrainerRegistrations();
+            } catch (error) {
+                console.error('Error rejecting registration:', error);
+                alert('Fehler beim Ablehnen der Bewerbung');
+            }
         }
 
         async function apiCall(endpoint, options = {}) {

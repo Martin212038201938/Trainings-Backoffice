@@ -2248,14 +2248,18 @@ def approve_trainer_application(app_id):
         last_name=application.last_name,
         email=application.email,
         phone=application.phone,
-        address=application.address,
+        street=application.street,
+        house_number=application.house_number,
+        postal_code=application.postal_code,
+        city=application.city,
         vat_number=application.vat_number,
+        bank_account=application.bank_account,
         linkedin_url=application.linkedin_url,
         website=application.website,
-        default_day_rate=application.default_day_rate,
         region=application.region,
-        bio=application.bio,
+        additional_info=application.additional_info,
         specializations=specs_json,
+        proposed_trainings=application.proposed_trainings,
         photo_path=application.photo_url
     )
     db.add(trainer)
