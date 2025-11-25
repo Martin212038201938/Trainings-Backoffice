@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .models import ActivityLog, Brand, Customer, EmailTemplate, Trainer, Training, TrainingCatalogEntry, TrainingTask, User
-from .routers import auth, brands, catalog, customers, search, tasks, trainers, trainings
+from .routers import auth, brands, catalog, customers, emails, search, tasks, trainers, trainings
 
 # Create tables with error handling
 try:
@@ -152,5 +152,6 @@ app.include_router(catalog.router, prefix="/catalog", tags=["catalog"])
 app.include_router(trainings.router, prefix="/trainings", tags=["trainings"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(search.router, prefix="/search", tags=["search"])
+app.include_router(emails.router, prefix="/emails", tags=["emails"])
 
 # Database credentials updated with correct password - Deployment #8

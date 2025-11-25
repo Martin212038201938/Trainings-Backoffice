@@ -29,9 +29,20 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_use_tls: bool = True
-    smtp_from_email: str = ""
+    smtp_from_email: str = "noreply@yellow-boat.org"
     smtp_from_name: str = "Yellow-Boat Academy"
     email_enabled: bool = False  # Set to True when SMTP is configured
+
+    # IMAP settings for receiving emails
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_username: str = ""
+    imap_password: str = ""
+    imap_use_ssl: bool = True
+
+    # Platform email domain
+    platform_email_domain: str = "yellow-boat.org"
+    frontend_base_url: str = "https://yellow-boat.org"
 
 
 settings = Settings()
