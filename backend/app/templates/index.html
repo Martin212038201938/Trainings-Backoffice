@@ -141,6 +141,160 @@
         .status-open { background: #ffc107; color: #333; }
         .status-solved { background: #28a745; color: white; }
         .status-not_solvable { background: #6c757d; color: white; }
+
+        /* Trainer Profile Modal Styles */
+        .trainer-profile-modal .modal-content {
+            max-width: 900px;
+        }
+        .trainer-profile-header {
+            display: flex;
+            gap: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid var(--yb-gelb);
+            margin-bottom: 1.5rem;
+        }
+        .trainer-profile-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--yb-hellblau);
+            flex-shrink: 0;
+        }
+        .trainer-profile-photo-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: var(--yb-grau-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            flex-shrink: 0;
+        }
+        .trainer-profile-main {
+            flex: 1;
+        }
+        .trainer-profile-name {
+            font-size: 1.75rem;
+            color: var(--yb-hellblau);
+            margin-bottom: 0.5rem;
+        }
+        .trainer-profile-contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .trainer-profile-contact-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--yb-grau);
+        }
+        .trainer-profile-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .trainer-profile-badge {
+            background: var(--yb-hellblau);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .trainer-profile-section {
+            margin-bottom: 1.5rem;
+        }
+        .trainer-profile-section-title {
+            font-size: 1.1rem;
+            color: var(--yb-hellblau);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .trainer-profile-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .trainer-profile-field {
+            margin-bottom: 0.5rem;
+        }
+        .trainer-profile-field-label {
+            font-size: 0.85rem;
+            color: var(--yb-grau);
+            margin-bottom: 0.25rem;
+        }
+        .trainer-profile-field-value {
+            color: #333;
+        }
+        .trainer-profile-trainings {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .trainer-profile-training-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--yb-gelb);
+        }
+        .trainer-profile-training-title {
+            font-weight: 600;
+            color: var(--yb-hellblau);
+            margin-bottom: 0.5rem;
+        }
+        .trainer-profile-training-meta {
+            font-size: 0.85rem;
+            color: var(--yb-grau);
+        }
+        .trainer-profile-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .trainer-profile-stat {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border-top: 3px solid var(--yb-gelb);
+        }
+        .trainer-profile-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--yb-hellblau);
+        }
+        .trainer-profile-stat-label {
+            font-size: 0.85rem;
+            color: var(--yb-grau);
+            margin-top: 0.25rem;
+        }
+        .trainer-profile-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #eee;
+        }
+        .trainer-application-table {
+            width: 100%;
+            font-size: 0.9rem;
+        }
+        .trainer-application-table th {
+            background: #f8f9fa;
+            padding: 0.5rem;
+        }
+        .trainer-application-table td {
+            padding: 0.5rem;
+        }
+        .status-accepted { background: #28a745; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
+        .status-rejected { background: #dc3545; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
+        .status-pending { background: #ffc107; color: #333; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
     </style>
 </head>
 <body>
@@ -340,7 +494,6 @@
                     <small style="padding: 0 1.5rem; color: #6c757d;">Admin</small>
                     <a href="#" onclick="showSection('users')" data-section="users">Benutzer</a>
                     <a href="#" onclick="showSection('trainer-registrations')" data-section="trainer-registrations">Neue Trainer</a>
-                    <a href="#" onclick="showSection('training-applications')" data-section="training-applications">Training-Bewerbungen</a>
                 </div>
                 <div id="trainerNav" style="display:none; border-top: 1px solid #ddd; margin-top: 1rem; padding-top: 1rem;">
                     <small style="padding: 0 1.5rem; color: #6c757d;">Trainer Portal</small>
@@ -524,30 +677,6 @@
                     </div>
                 </div>
 
-                <!-- Training Applications (Admin only) - Existing trainers applying for trainings -->
-                <div id="section-training-applications" class="section" style="display:none;">
-                    <div class="card">
-                        <div class="card-header">
-                            Trainer-Bewerbungen für Trainings
-                        </div>
-                        <div class="card-body">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Trainer</th>
-                                        <th>Training</th>
-                                        <th>Tagessatz</th>
-                                        <th>Nachricht</th>
-                                        <th>Status</th>
-                                        <th>Datum</th>
-                                        <th>Aktionen</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="trainingApplicationsTable"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Trainer Dashboard -->
                 <div id="section-trainer-dashboard" class="section" style="display:none;">
@@ -860,6 +989,19 @@
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Senden</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Trainer Profile Modal -->
+    <div class="modal trainer-profile-modal" id="trainerProfileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Trainer-Profil</h3>
+                <span class="close" onclick="closeTrainerProfileModal()">&times;</span>
+            </div>
+            <div id="trainerProfileContent">
+                <!-- Content will be dynamically inserted -->
+            </div>
         </div>
     </div>
 
@@ -1259,7 +1401,6 @@
             else if (name === 'locations') loadLocations();
             else if (name === 'users') loadUsers();
             else if (name === 'trainer-registrations') loadTrainerRegistrations();
-            else if (name === 'training-applications') loadTrainingApplications();
             else if (name === 'trainer-dashboard') loadTrainerDashboard();
             else if (name === 'my-profile') loadMyProfile();
             else if (name === 'open-trainings') loadOpenTrainings();
@@ -1895,6 +2036,18 @@
             }
         }
 
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function closeTrainerProfileModal() {
+            document.getElementById('trainerProfileModal').style.display = 'none';
+        }
+
         async function viewTrainerRegistration(regId) {
             try {
                 const res = await apiCall(`/trainer/applications/${regId}`);
@@ -1904,45 +2057,129 @@
                 }
                 const reg = await res.json();
 
-                let proposedTrainings = '';
+                // Parse specializations
+                const specs = reg.specializations ? reg.specializations.split(',').map(s => s.trim()).filter(s => s) : [];
+
+                // Parse proposed trainings
+                let proposedTrainingsHtml = '<p style="color: #6c757d;">Keine Trainings angegeben</p>';
                 if (reg.proposed_trainings) {
                     try {
                         const trainings = JSON.parse(reg.proposed_trainings);
-                        proposedTrainings = trainings.map((t, i) => `
-                            <div style="margin-bottom: 1rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px;">
-                                <strong>${i+1}. ${t.title || 'Ohne Titel'}</strong><br>
-                                ${t.description || ''}<br>
-                                <small>Dauer: ${t.duration || '-'} ${t.duration_unit || ''} | Preis: ${t.price || '-'} €</small>
-                            </div>
-                        `).join('');
-                    } catch (e) { proposedTrainings = reg.proposed_trainings; }
+                        if (trainings.length > 0) {
+                            proposedTrainingsHtml = trainings.map(t => `
+                                <div class="trainer-profile-training-card">
+                                    <div class="trainer-profile-training-title">${escapeHtml(t.title) || 'Ohne Titel'}</div>
+                                    <p style="margin-bottom: 0.5rem;">${escapeHtml(t.description) || ''}</p>
+                                    <div class="trainer-profile-training-meta">
+                                        <span>Dauer: ${escapeHtml(t.duration) || '-'} ${escapeHtml(t.duration_unit) || ''}</span>
+                                        <span style="margin-left: 1rem;">Preis: ${t.price ? t.price + ' €' : '-'}</span>
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+                    } catch (e) {
+                        proposedTrainingsHtml = `<p>${escapeHtml(reg.proposed_trainings)}</p>`;
+                    }
                 }
 
-                alert(`
-BEWERBUNG VON: ${reg.first_name} ${reg.last_name}
+                const statusLabel = reg.status === 'pending' ? 'Offen' : reg.status === 'approved' ? 'Genehmigt' : 'Abgelehnt';
+                const statusClass = reg.status === 'pending' ? 'status-pending' : reg.status === 'approved' ? 'status-accepted' : 'status-rejected';
 
-E-Mail: ${reg.email}
-Telefon: ${reg.phone || '-'}
-Region: ${reg.region || '-'}
+                const profileHtml = `
+                    <div class="trainer-profile-header">
+                        ${reg.photo_url
+                            ? `<img src="${escapeHtml(reg.photo_url)}" class="trainer-profile-photo" alt="Foto">`
+                            : `<div class="trainer-profile-photo-placeholder">${escapeHtml((reg.first_name || '?')[0])}${escapeHtml((reg.last_name || '?')[0])}</div>`
+                        }
+                        <div class="trainer-profile-main">
+                            <h2 class="trainer-profile-name">${escapeHtml(reg.first_name)} ${escapeHtml(reg.last_name)}</h2>
+                            <div class="trainer-profile-contact">
+                                <div class="trainer-profile-contact-item">
+                                    <span>📧</span> ${escapeHtml(reg.email) || '-'}
+                                </div>
+                                <div class="trainer-profile-contact-item">
+                                    <span>📱</span> ${escapeHtml(reg.phone) || '-'}
+                                </div>
+                                <div class="trainer-profile-contact-item">
+                                    <span>📍</span> ${escapeHtml(reg.region) || '-'}
+                                </div>
+                            </div>
+                            <div class="trainer-profile-badges">
+                                <span class="${statusClass}">${statusLabel}</span>
+                                ${specs.map(s => `<span class="trainer-profile-badge">${escapeHtml(s)}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
 
-Adresse:
-${reg.street || ''} ${reg.house_number || ''}
-${reg.postal_code || ''} ${reg.city || ''}
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Kontaktdaten & Adresse</h4>
+                        <div class="trainer-profile-grid">
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">Straße</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(reg.street) || '-'} ${escapeHtml(reg.house_number) || ''}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">PLZ / Ort</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(reg.postal_code) || ''} ${escapeHtml(reg.city) || '-'}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">USt-ID</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(reg.vat_number) || '-'}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">Bankverbindung</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(reg.bank_account) || '-'}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">LinkedIn</div>
+                                <div class="trainer-profile-field-value">
+                                    ${reg.linkedin_url ? `<a href="${escapeHtml(reg.linkedin_url)}" target="_blank">${escapeHtml(reg.linkedin_url)}</a>` : '-'}
+                                </div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">Website</div>
+                                <div class="trainer-profile-field-value">
+                                    ${reg.website ? `<a href="${escapeHtml(reg.website)}" target="_blank">${escapeHtml(reg.website)}</a>` : '-'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-USt-ID: ${reg.vat_number || '-'}
-Bank: ${reg.bank_account || '-'}
+                    ${reg.additional_info ? `
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Weitere Informationen</h4>
+                        <p style="white-space: pre-wrap;">${escapeHtml(reg.additional_info)}</p>
+                    </div>
+                    ` : ''}
 
-Spezialisierungen: ${reg.specializations || '-'}
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Angebotene Trainings</h4>
+                        <div class="trainer-profile-trainings">
+                            ${proposedTrainingsHtml}
+                        </div>
+                    </div>
 
-Weitere Informationen:
-${reg.additional_info || '-'}
+                    <div class="trainer-profile-section">
+                        <div class="trainer-profile-field">
+                            <div class="trainer-profile-field-label">Bewerbung eingegangen</div>
+                            <div class="trainer-profile-field-value">${reg.created_at ? new Date(reg.created_at).toLocaleString('de') : '-'}</div>
+                        </div>
+                    </div>
 
-LinkedIn: ${reg.linkedin_url || '-'}
-Website: ${reg.website || '-'}
+                    ${reg.status === 'pending' ? `
+                    <div class="trainer-profile-actions">
+                        <button class="btn btn-success" onclick="approveTrainerRegistration(${reg.id}); closeTrainerProfileModal();">
+                            Genehmigen
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectTrainerRegistration(${reg.id}); closeTrainerProfileModal();">
+                            Ablehnen
+                        </button>
+                    </div>
+                    ` : ''}
+                `;
 
-Status: ${reg.status}
-Datum: ${reg.created_at ? new Date(reg.created_at).toLocaleString('de') : '-'}
-                `.trim());
+                document.getElementById('trainerProfileContent').innerHTML = profileHtml;
+                document.getElementById('trainerProfileModal').style.display = 'flex';
             } catch (error) {
                 console.error('Error:', error);
                 alert('Fehler beim Laden');
@@ -2107,15 +2344,15 @@ Datum: ${reg.created_at ? new Date(reg.created_at).toLocaleString('de') : '-'}
                     const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
                     return `
                         <tr>
-                            <td title="Tel: ${t.phone || '-'}\nRegion: ${t.region || '-'}\nTagessatz: ${t.default_day_rate ? t.default_day_rate + ' €' : '-'}">
-                                ${t.photo_path ? `<img src="${t.photo_path}" style="width:30px;height:30px;border-radius:50%;margin-right:0.5rem;vertical-align:middle;">` : ''}
-                                ${t.name || '-'}
+                            <td style="cursor: pointer;" onclick="showTrainerProfile(${t.id})" title="Klicken für Profil">
+                                ${t.photo_path ? `<img src="${escapeHtml(t.photo_path)}" style="width:30px;height:30px;border-radius:50%;margin-right:0.5rem;vertical-align:middle;">` : ''}
+                                <strong>${escapeHtml(t.name) || '-'}</strong>
                             </td>
-                            <td>${t.email || '-'}</td>
-                            <td>${allSpecs.slice(0, 3).join(', ') || '-'}${allSpecs.length > 3 ? '...' : ''}</td>
+                            <td>${escapeHtml(t.email) || '-'}</td>
+                            <td>${allSpecs.slice(0, 3).map(s => escapeHtml(s)).join(', ') || '-'}${allSpecs.length > 3 ? '...' : ''}</td>
                             <td>
+                                <button class="btn btn-sm" onclick="showTrainerProfile(${t.id})" style="margin-right:0.25rem;">Profil</button>
                                 <button class="btn btn-sm btn-secondary" onclick="showEditModal('trainer', ${t.id})" style="margin-right:0.25rem;">Bearbeiten</button>
-                                ${t.linkedin_url ? `<a href="${t.linkedin_url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right:0.25rem;">LinkedIn</a>` : ''}
                                 <button class="btn btn-sm btn-danger" onclick="deleteItem('trainers', ${t.id})">Löschen</button>
                             </td>
                         </tr>
@@ -2124,6 +2361,194 @@ Datum: ${reg.created_at ? new Date(reg.created_at).toLocaleString('de') : '-'}
             } catch (err) {
                 console.error('Error loading trainers:', err);
                 document.getElementById('trainersTable').innerHTML = '<tr><td colspan="4">Fehler beim Laden</td></tr>';
+            }
+        }
+
+        async function showTrainerProfile(trainerId) {
+            try {
+                // Load trainer data
+                const trainerRes = await apiCall(`/trainers/${trainerId}`);
+                if (!trainerRes.ok) {
+                    alert('Fehler beim Laden des Trainers');
+                    return;
+                }
+                const trainer = await trainerRes.json();
+
+                // Load training applications for this trainer
+                let applications = [];
+                let totalRevenue = 0;
+                let completedTrainings = 0;
+                let acceptedApplications = 0;
+                let rejectedApplications = 0;
+
+                try {
+                    const appsRes = await apiCall(`/trainers/${trainerId}/applications`);
+                    if (appsRes.ok) {
+                        applications = await appsRes.json();
+                        applications.forEach(app => {
+                            if (app.status === 'accepted') {
+                                acceptedApplications++;
+                                if (app.training_status === 'completed' || app.training_status === 'durchgeführt') {
+                                    completedTrainings++;
+                                    totalRevenue += app.agreed_rate || app.proposed_rate || 0;
+                                }
+                            } else if (app.status === 'rejected') {
+                                rejectedApplications++;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.log('Could not load trainer applications:', e);
+                }
+
+                // Parse specializations
+                const specs = trainer.specializations || {selected: [], custom: []};
+                const allSpecs = [...(specs.selected || []), ...(specs.custom || [])];
+
+                // Build applications table
+                let applicationsHtml = '<p style="color: #6c757d;">Keine Bewerbungen vorhanden</p>';
+                if (applications.length > 0) {
+                    applicationsHtml = `
+                        <table class="trainer-application-table">
+                            <thead>
+                                <tr>
+                                    <th>Training</th>
+                                    <th>Status</th>
+                                    <th>Tagessatz</th>
+                                    <th>Datum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${applications.map(app => {
+                                    const statusLabel = app.status === 'accepted' ? 'Zuschlag' : app.status === 'rejected' ? 'Abgelehnt' : 'Offen';
+                                    const statusClass = app.status === 'accepted' ? 'status-accepted' : app.status === 'rejected' ? 'status-rejected' : 'status-pending';
+                                    return `
+                                        <tr>
+                                            <td>${escapeHtml(app.training_title) || '-'}</td>
+                                            <td><span class="${statusClass}">${statusLabel}</span></td>
+                                            <td>${app.agreed_rate || app.proposed_rate ? (app.agreed_rate || app.proposed_rate) + ' €' : '-'}</td>
+                                            <td>${app.created_at ? new Date(app.created_at).toLocaleDateString('de') : '-'}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                const profileHtml = `
+                    <div class="trainer-profile-header">
+                        ${trainer.photo_path
+                            ? `<img src="${escapeHtml(trainer.photo_path)}" class="trainer-profile-photo" alt="Foto">`
+                            : `<div class="trainer-profile-photo-placeholder">${escapeHtml((trainer.first_name || trainer.name || '?')[0])}</div>`
+                        }
+                        <div class="trainer-profile-main">
+                            <h2 class="trainer-profile-name">${escapeHtml(trainer.name || (trainer.first_name + ' ' + trainer.last_name))}</h2>
+                            <div class="trainer-profile-contact">
+                                <div class="trainer-profile-contact-item">
+                                    <span>📧</span> ${escapeHtml(trainer.email) || '-'}
+                                </div>
+                                <div class="trainer-profile-contact-item">
+                                    <span>📱</span> ${escapeHtml(trainer.phone) || '-'}
+                                </div>
+                                <div class="trainer-profile-contact-item">
+                                    <span>📍</span> ${escapeHtml(trainer.region) || '-'}
+                                </div>
+                                <div class="trainer-profile-contact-item">
+                                    <span>💰</span> ${trainer.default_day_rate ? trainer.default_day_rate + ' €/Tag' : '-'}
+                                </div>
+                            </div>
+                            <div class="trainer-profile-badges">
+                                ${allSpecs.map(s => `<span class="trainer-profile-badge">${escapeHtml(s)}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="trainer-profile-stats">
+                        <div class="trainer-profile-stat">
+                            <div class="trainer-profile-stat-value">${completedTrainings}</div>
+                            <div class="trainer-profile-stat-label">Trainings durchgeführt</div>
+                        </div>
+                        <div class="trainer-profile-stat">
+                            <div class="trainer-profile-stat-value">${acceptedApplications}</div>
+                            <div class="trainer-profile-stat-label">Zuschläge erhalten</div>
+                        </div>
+                        <div class="trainer-profile-stat">
+                            <div class="trainer-profile-stat-value">${totalRevenue.toLocaleString('de')} €</div>
+                            <div class="trainer-profile-stat-label">Umsatz mit uns</div>
+                        </div>
+                    </div>
+
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Kontaktdaten & Adresse</h4>
+                        <div class="trainer-profile-grid">
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">Straße</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(trainer.street) || '-'} ${escapeHtml(trainer.street_number) || ''}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">PLZ / Ort</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(trainer.postal_code) || ''} ${escapeHtml(trainer.city) || '-'}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">USt-ID</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(trainer.vat_id) || '-'}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">Region</div>
+                                <div class="trainer-profile-field-value">${escapeHtml(trainer.region) || '-'}</div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">LinkedIn</div>
+                                <div class="trainer-profile-field-value">
+                                    ${trainer.linkedin_url ? `<a href="${escapeHtml(trainer.linkedin_url)}" target="_blank">LinkedIn Profil</a>` : '-'}
+                                </div>
+                            </div>
+                            <div class="trainer-profile-field">
+                                <div class="trainer-profile-field-label">Website</div>
+                                <div class="trainer-profile-field-value">
+                                    ${trainer.website ? `<a href="${escapeHtml(trainer.website)}" target="_blank">${escapeHtml(trainer.website)}</a>` : '-'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${trainer.bio ? `
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Bio</h4>
+                        <p style="white-space: pre-wrap;">${escapeHtml(trainer.bio)}</p>
+                    </div>
+                    ` : ''}
+
+                    ${trainer.notes ? `
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Interne Notizen</h4>
+                        <p style="white-space: pre-wrap;">${escapeHtml(trainer.notes)}</p>
+                    </div>
+                    ` : ''}
+
+                    <div class="trainer-profile-section">
+                        <h4 class="trainer-profile-section-title">Training-Bewerbungen</h4>
+                        ${applicationsHtml}
+                    </div>
+
+                    <div class="trainer-profile-actions">
+                        <button class="btn btn-secondary" onclick="showEditModal('trainer', ${trainer.id}); closeTrainerProfileModal();">
+                            Bearbeiten
+                        </button>
+                        ${trainer.linkedin_url ? `
+                        <a href="${escapeHtml(trainer.linkedin_url)}" target="_blank" class="btn btn-secondary">
+                            LinkedIn
+                        </a>
+                        ` : ''}
+                    </div>
+                `;
+
+                document.getElementById('trainerProfileContent').innerHTML = profileHtml;
+                document.getElementById('trainerProfileModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Fehler beim Laden des Trainer-Profils');
             }
         }
 
