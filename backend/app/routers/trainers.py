@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..core.deps import get_current_active_user, get_db, require_backoffice
 from ..database import SessionLocal
-from ..models import Brand, Trainer, User
+from ..models import Brand, Trainer, Training, User
+from ..models.core import TrainerApplication
 from ..schemas.base import TrainerCreate, TrainerRead
 from ..utils.search import escape_like_wildcards
 
@@ -107,3 +108,40 @@ def delete_trainer(
     db.delete(trainer)
     db.commit()
     return {"status": "deleted"}
+
+
+@router.get("/{trainer_id}/applications")
+def get_trainer_applications(
+    trainer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_backoffice),
+):
+    """Get all training applications for a specific trainer. Requires backoffice or admin role."""
+    trainer = db.get(Trainer, trainer_id)
+    if not trainer:
+        raise HTTPException(status_code=404, detail="Trainer not found")
+
+    applications = (
+        db.query(TrainerApplication)
+        .filter(TrainerApplication.trainer_id == trainer_id)
+        .order_by(TrainerApplication.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for app in applications:
+        training = db.get(Training, app.training_id)
+        result.append({
+            "id": app.id,
+            "training_id": app.training_id,
+            "training_title": training.title if training else None,
+            "training_status": training.status if training else None,
+            "status": app.status,
+            "message": app.message,
+            "proposed_rate": app.proposed_rate,
+            "agreed_rate": training.trainer_daily_rate if training and app.status == "accepted" else None,
+            "admin_notes": app.admin_notes,
+            "created_at": app.created_at.isoformat() if app.created_at else None,
+        })
+
+    return result
