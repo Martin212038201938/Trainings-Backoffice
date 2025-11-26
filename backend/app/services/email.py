@@ -256,3 +256,114 @@ Viele Gruesse,
 Das Yellow-Boat Academy Team
 """
     return send_email(trainer_email, subject, body)
+
+
+# ============== Training Application Emails (for specific trainings) ==============
+
+def send_training_application_submitted(
+    trainer_email: str,
+    trainer_name: str,
+    training_title: str,
+    training_id: int
+) -> bool:
+    """Send confirmation email when trainer applies for a specific training."""
+    subject = f"Bewerbung eingereicht: {training_title}"
+    body = f"""Hallo {trainer_name},
+
+deine Bewerbung fuer das Training "{training_title}" (ID: {training_id}) wurde erfolgreich eingereicht.
+
+Wir werden deine Bewerbung pruefen und dich ueber unsere Entscheidung informieren.
+
+Du kannst den Status deiner Bewerbung jederzeit im Backoffice einsehen.
+
+Viele Gruesse,
+Das Yellow-Boat Academy Team
+"""
+    return send_email(trainer_email, subject, body)
+
+
+def send_training_application_accepted(
+    trainer_email: str,
+    trainer_name: str,
+    training_title: str,
+    training_date: Optional[str] = None,
+    customer_name: Optional[str] = None
+) -> bool:
+    """Send email when trainer's application for a specific training is accepted."""
+    subject = f"Bewerbung angenommen: {training_title}"
+
+    details = ""
+    if training_date or customer_name:
+        details = "\n\nTraining-Details:\n"
+        if training_date:
+            details += f"Datum: {training_date}\n"
+        if customer_name:
+            details += f"Kunde: {customer_name}\n"
+
+    body = f"""Hallo {trainer_name},
+
+herzlichen Glueckwunsch! Deine Bewerbung fuer das Training "{training_title}" wurde angenommen.
+
+Du wurdest diesem Training zugewiesen.{details}
+
+Bitte pruefe die vollstaendigen Details im Backoffice und bestatige deine Verfuegbarkeit.
+
+Wir freuen uns auf die Zusammenarbeit!
+
+Viele Gruesse,
+Das Yellow-Boat Academy Team
+"""
+    return send_email(trainer_email, subject, body)
+
+
+def send_training_application_rejected(
+    trainer_email: str,
+    trainer_name: str,
+    training_title: str,
+    reason: Optional[str] = None
+) -> bool:
+    """Send email when trainer's application for a specific training is rejected."""
+    subject = f"Rueckmeldung zu deiner Bewerbung: {training_title}"
+
+    reason_text = ""
+    if reason:
+        reason_text = f"\n\nBegruendung: {reason}\n"
+
+    body = f"""Hallo {trainer_name},
+
+vielen Dank fuer dein Interesse an dem Training "{training_title}".
+
+Leider koennen wir dir dieses Training derzeit nicht zuweisen.{reason_text}
+
+Es gibt regelmaessig neue Trainingsanfragen. Schau gerne im Backoffice nach weiteren Moeglichkeiten.
+
+Viele Gruesse,
+Das Yellow-Boat Academy Team
+"""
+    return send_email(trainer_email, subject, body)
+
+
+def send_training_application_admin_notification(
+    admin_email: str,
+    trainer_name: str,
+    training_title: str,
+    training_id: int,
+    application_id: int
+) -> bool:
+    """Send notification to admin when a trainer applies for a training."""
+    subject = f"Neue Trainerbewerbung fuer: {training_title}"
+    body = f"""Hallo,
+
+ein Trainer hat sich fuer ein Training beworben:
+
+Trainer: {trainer_name}
+Training: {training_title}
+Training-ID: {training_id}
+Bewerbungs-ID: {application_id}
+
+Bitte pruefe die Bewerbung im Admin-Bereich des Backoffice.
+
+Viele Gruesse,
+Yellow-Boat Academy System
+"""
+    return send_email(admin_email, subject, body)

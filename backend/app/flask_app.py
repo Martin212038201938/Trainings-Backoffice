@@ -43,7 +43,11 @@ from .services.email import (
     send_training_status_update,
     send_new_application_admin_notification,
     send_trainer_assigned_notification,
-    send_training_reminder
+    send_training_reminder,
+    send_training_application_submitted,
+    send_training_application_accepted as send_training_app_accepted,
+    send_training_application_rejected as send_training_app_rejected,
+    send_training_application_admin_notification
 )
 
 # Create tables
@@ -1682,6 +1686,29 @@ def apply_for_training(training_id):
     db.commit()
     db.refresh(application)
 
+    # Send confirmation email to trainer
+    trainer_name = f"{trainer.first_name} {trainer.last_name}" if trainer.first_name else trainer.name
+    training_title = training.title or f"Training {training_id}"
+    if trainer.email:
+        send_training_application_submitted(
+            trainer.email,
+            trainer_name,
+            training_title,
+            training_id
+        )
+
+    # Send notification to admins
+    admin_users = db.query(User).filter(User.role.in_(['admin', 'backoffice_user'])).all()
+    for admin in admin_users:
+        if admin.email:
+            send_training_application_admin_notification(
+                admin.email,
+                trainer_name,
+                training_title,
+                training_id,
+                application.id
+            )
+
     return jsonify({
         "id": application.id,
         "status": "pending",
@@ -1794,12 +1821,41 @@ def accept_training_application(app_id):
         TrainerApplication.id != app_id,
         TrainerApplication.status == 'pending'
     ).all()
+    rejected_trainer_ids = [other_app.trainer_id for other_app in other_apps]
     for other_app in other_apps:
         other_app.status = 'rejected'
 
     db.commit()
 
+    # Get trainer info for emails
     trainer = db.query(Trainer).filter(Trainer.id == application.trainer_id).first()
+    training_title = training.title or f"Training {training.id}"
+    training_date = training.start_date.strftime("%d.%m.%Y") if training.start_date else None
+    customer_name = training.customer.company_name if training.customer else None
+
+    # Send acceptance email to the accepted trainer
+    if trainer and trainer.email:
+        trainer_name = f"{trainer.first_name} {trainer.last_name}" if trainer.first_name else trainer.name
+        send_training_app_accepted(
+            trainer.email,
+            trainer_name,
+            training_title,
+            training_date,
+            customer_name
+        )
+
+    # Send rejection emails to other applicants
+    for rejected_trainer_id in rejected_trainer_ids:
+        rejected_trainer = db.query(Trainer).filter(Trainer.id == rejected_trainer_id).first()
+        if rejected_trainer and rejected_trainer.email:
+            rejected_name = f"{rejected_trainer.first_name} {rejected_trainer.last_name}" if rejected_trainer.first_name else rejected_trainer.name
+            send_training_app_rejected(
+                rejected_trainer.email,
+                rejected_name,
+                training_title,
+                "Das Training wurde einem anderen Trainer zugewiesen."
+            )
+
     return jsonify({
         "status": "success",
         "message": f"Trainer {trainer.name if trainer else 'Unbekannt'} wurde dem Training zugewiesen",
@@ -1825,8 +1881,27 @@ def reject_training_application(app_id):
     if application.status != 'pending':
         return jsonify({'error': 'Application already processed'}), 400
 
+    # Get trainer and training info before updating
+    trainer = db.query(Trainer).filter(Trainer.id == application.trainer_id).first()
+    training = db.query(Training).filter(Training.id == application.training_id).first()
+
+    # Get optional rejection reason from request body
+    data = request.get_json() or {}
+    reason = data.get('reason')
+
     application.status = 'rejected'
     db.commit()
+
+    # Send rejection email to trainer
+    if trainer and trainer.email and training:
+        trainer_name = f"{trainer.first_name} {trainer.last_name}" if trainer.first_name else trainer.name
+        training_title = training.title or f"Training {training.id}"
+        send_training_app_rejected(
+            trainer.email,
+            trainer_name,
+            training_title,
+            reason
+        )
 
     return jsonify({"status": "success", "message": "Bewerbung abgelehnt"})
 
