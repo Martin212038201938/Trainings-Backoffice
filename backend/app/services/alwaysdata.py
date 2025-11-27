@@ -52,15 +52,12 @@ def create_mailbox(
     if not password:
         password = generate_secure_password()
 
-    # AlwaysData API expects domain as a URL reference
-    domain_url = f"/v1/domain/{domain_id}/"
-
-    logger.info(f"Creating mailbox: name={email_name}, domain_id={domain_id}, domain_url={domain_url}")
+    logger.info(f"Creating mailbox: name={email_name}, domain_id={domain_id}")
 
     try:
         payload = {
             "name": email_name,
-            "domain": domain_url,
+            "domain": domain_id,  # AlwaysData expects numeric domain ID
             "password": password
         }
         logger.debug(f"AlwaysData API request payload: {payload}")
