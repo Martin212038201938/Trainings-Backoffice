@@ -52,29 +52,39 @@ def create_mailbox(
     if not password:
         password = generate_secure_password()
 
+    # AlwaysData API expects domain as a URL reference
+    domain_url = f"/v1/domain/{domain_id}/"
+
+    logger.info(f"Creating mailbox: name={email_name}, domain_id={domain_id}, domain_url={domain_url}")
+
     try:
+        payload = {
+            "name": email_name,
+            "domain": domain_url,
+            "password": password
+        }
+        logger.debug(f"AlwaysData API request payload: {payload}")
+
         response = requests.post(
             f"{ALWAYSDATA_API_URL}/mailbox/",
             auth=get_api_auth(),
-            json={
-                "name": email_name,
-                "domain": domain_id,
-                "password": password
-            },
+            json=payload,
             timeout=30
         )
+
+        logger.info(f"AlwaysData API response: status={response.status_code}")
 
         if response.status_code in (200, 201):
             data = response.json()
             email_address = f"{email_name}@{settings.platform_email_domain}"
-            logger.info(f"Created mailbox: {email_address}")
+            logger.info(f"Successfully created mailbox: {email_address}")
             return True, email_address, password
         else:
             logger.error(f"Failed to create mailbox: {response.status_code} - {response.text}")
             return False, None, None
 
     except Exception as e:
-        logger.error(f"Error creating mailbox: {e}")
+        logger.error(f"Error creating mailbox: {e}", exc_info=True)
         return False, None, None
 
 
