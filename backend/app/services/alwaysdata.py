@@ -72,7 +72,7 @@ def create_mailbox(
         logger.info(f"AlwaysData API response: status={response.status_code}")
 
         if response.status_code in (200, 201):
-            data = response.json()
+            # AlwaysData returns 201 Created with empty body on success
             email_address = f"{email_name}@{settings.platform_email_domain}"
             logger.info(f"Successfully created mailbox: {email_address}")
             return True, email_address, password
