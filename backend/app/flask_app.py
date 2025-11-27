@@ -37,6 +37,7 @@ from .models.core import validate_status_transition, validate_training_type, val
 from .core.security import create_access_token, get_password_hash, verify_password
 from .services.email import (
     send_welcome_email,
+    send_trainer_welcome_email,
     send_trainer_application_received,
     send_trainer_application_accepted,
     send_trainer_application_rejected,
@@ -1551,17 +1552,27 @@ def get_open_trainings():
         TrainerApplication.trainer_id == trainer.id
     ).all()]
 
-    return jsonify([{
-        "id": t.id,
-        "title": t.title,
-        "description": t.location_details,
-        "start_date": t.start_date.isoformat() if t.start_date else None,
-        "end_date": t.end_date.isoformat() if t.end_date else None,
-        "duration_days": t.duration_days,
-        "location": t.location,
-        "status": t.status,
-        "already_applied": t.id in my_application_training_ids
-    } for t in open_trainings])
+    result = []
+    for t in open_trainings:
+        # Calculate hourly rate (assuming 8 hours per day)
+        tagessatz = t.tagessatz
+        stundensatz = round(tagessatz / 8, 2) if tagessatz else None
+
+        result.append({
+            "id": t.id,
+            "title": t.title,
+            "description": t.location_details,
+            "start_date": t.start_date.isoformat() if t.start_date else None,
+            "end_date": t.end_date.isoformat() if t.end_date else None,
+            "duration_days": t.duration_days,
+            "location": t.location,
+            "status": t.status,
+            "tagessatz": tagessatz,
+            "stundensatz": stundensatz,
+            "already_applied": t.id in my_application_training_ids
+        })
+
+    return jsonify(result)
 
 
 @app.route('/trainer/my-trainings')
@@ -1674,11 +1685,12 @@ def apply_for_training(training_id):
 
     data = request.get_json() or {}
 
+    # Use the training's tagessatz - trainer does not propose their own rate
     application = TrainerApplication(
         training_id=training_id,
         trainer_id=trainer.id,
         message=data.get('message'),
-        proposed_rate=data.get('proposed_rate') or trainer.default_day_rate,
+        proposed_rate=training.tagessatz,  # Always use training's rate
         status='pending'
     )
 
@@ -1709,10 +1721,16 @@ def apply_for_training(training_id):
                 application.id
             )
 
+    # Calculate hourly rate (assuming 8 hours per day)
+    tagessatz = training.tagessatz
+    stundensatz = round(tagessatz / 8, 2) if tagessatz else None
+
     return jsonify({
         "id": application.id,
         "status": "pending",
-        "message": "Application submitted successfully"
+        "message": "Application submitted successfully",
+        "tagessatz": tagessatz,
+        "stundensatz": stundensatz
     }), 201
 
 
@@ -2381,6 +2399,9 @@ def approve_trainer_application(app_id):
     # Send acceptance email to trainer
     trainer_name = f"{application.first_name} {application.last_name}"
     send_trainer_application_accepted(application.email, trainer_name)
+
+    # Send welcome email from Martin with important information
+    send_trainer_welcome_email(application.email, trainer_name)
 
     # If platform email was created, send credentials
     if platform_email and email_password:

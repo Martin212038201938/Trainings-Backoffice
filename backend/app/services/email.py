@@ -79,6 +79,32 @@ Das Yellow-Boat Academy Team
     return send_email(user_email, subject, body)
 
 
+def send_trainer_welcome_email(trainer_email: str, trainer_name: str) -> bool:
+    """Send welcome email from Martin to newly registered trainer."""
+    subject = "Herzlich Willkommen bei Yellow-Boat Academy!"
+    body = f"""Hallo {trainer_name},
+
+herzlich willkommen bei Yellow-Boat Academy! Wir freuen uns sehr, dich als Trainer in unserem Team begruessen zu duerfen.
+
+WICHTIGER HINWEIS ZUR KOMMUNIKATION:
+Fuer die Kommunikation mit unseren Kunden nutze bitte ausschliesslich dieses Portal. So stellen wir sicher, dass alle Informationen zentral verfuegbar sind und nichts verloren geht.
+
+Du erhaeltst jedes Mal eine Benachrichtigung per E-Mail an dein normales Postfach, wenn ein Kunde dir geantwortet hat. So bleibst du immer auf dem Laufenden.
+
+Bei Fragen stehe ich dir jederzeit gerne zur Verfuegung:
+
+E-Mail: martin@yellow-boat.com
+Telefon: 0160-7535453
+
+Ich freue mich auf eine tolle Zusammenarbeit!
+
+Herzliche Gruesse,
+Martin
+Yellow-Boat Academy
+"""
+    return send_email(trainer_email, subject, body)
+
+
 def send_trainer_application_received(trainer_email: str, trainer_name: str) -> bool:
     """Send confirmation email when trainer application is received."""
     subject = "Deine Bewerbung ist eingegangen"

@@ -11,9 +11,10 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..core.deps import get_current_active_user, get_db, require_admin
 from ..core.security import create_access_token, get_password_hash, verify_password
-from ..models.user import User
+from ..models.user import User, UserRole
 from ..models.core import Trainer
 from ..schemas.auth import Token, UserCreate, UserResponse, UserUpdate
+from ..services.email import send_trainer_welcome_email
 
 import logging
 logger = logging.getLogger(__name__)
@@ -120,6 +121,15 @@ async def register(
 
     db.commit()
     db.refresh(db_user)
+
+    # Send welcome email to trainers
+    if user_data.role == UserRole.TRAINER:
+        trainer_name = user_data.username
+        # Try to get trainer name if linked
+        if trainer:
+            trainer_name = f"{trainer.first_name} {trainer.last_name}" if trainer.first_name else trainer.name or user_data.username
+        send_trainer_welcome_email(user_data.email, trainer_name)
+        logger.info(f"Sent welcome email to trainer {user_data.email}")
 
     return db_user
 
