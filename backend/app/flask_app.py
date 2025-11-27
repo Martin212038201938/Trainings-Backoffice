@@ -1765,6 +1765,129 @@ def withdraw_application(application_id):
     return jsonify({"status": "withdrawn"})
 
 
+# ============== Debug/Config Check Routes ==============
+
+@app.route('/admin/debug/config')
+@token_required
+def debug_config():
+    """Debug endpoint to check configuration (admin only)."""
+    if g.current_user.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+
+    from .config import settings
+    import os
+
+    # Check .env file location
+    env_file_path = str(settings.model_config.get('env_file', 'not set'))
+
+    return jsonify({
+        "env_file_path": env_file_path,
+        "env_file_exists": os.path.exists(env_file_path) if env_file_path != 'not set' else False,
+        "alwaysdata": {
+            "api_key_set": bool(settings.alwaysdata_api_key),
+            "api_key_length": len(settings.alwaysdata_api_key) if settings.alwaysdata_api_key else 0,
+            "account": settings.alwaysdata_account,
+            "domain_id": settings.alwaysdata_domain_id,
+            "domain_id_configured": settings.alwaysdata_domain_id != 0
+        },
+        "smtp": {
+            "host": settings.smtp_host,
+            "port": settings.smtp_port,
+            "username": settings.smtp_username,
+            "password_set": bool(settings.smtp_password),
+            "password_length": len(settings.smtp_password) if settings.smtp_password else 0,
+            "use_tls": settings.smtp_use_tls,
+            "from_email": settings.smtp_from_email,
+            "email_enabled": settings.email_enabled
+        },
+        "platform": {
+            "email_domain": settings.platform_email_domain
+        }
+    })
+
+
+@app.route('/admin/debug/test-alwaysdata')
+@token_required
+def test_alwaysdata_connection():
+    """Test AlwaysData API connection (admin only)."""
+    if g.current_user.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+
+    from .config import settings
+
+    if not settings.alwaysdata_api_key:
+        return jsonify({"success": False, "error": "API key not configured"})
+
+    if not settings.alwaysdata_domain_id:
+        return jsonify({"success": False, "error": "Domain ID not configured (is 0)"})
+
+    try:
+        import requests
+        from .services.alwaysdata import get_api_auth, ALWAYSDATA_API_URL
+
+        # Test: List existing mailboxes
+        response = requests.get(
+            f"{ALWAYSDATA_API_URL}/mailbox/",
+            auth=get_api_auth(),
+            timeout=30
+        )
+
+        return jsonify({
+            "success": response.status_code == 200,
+            "status_code": response.status_code,
+            "mailbox_count": len(response.json()) if response.status_code == 200 else 0,
+            "response_preview": str(response.text)[:500] if response.status_code != 200 else "OK"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/admin/debug/test-smtp')
+@token_required
+def test_smtp_connection():
+    """Test SMTP connection (admin only)."""
+    if g.current_user.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+
+    from .config import settings
+    import smtplib
+
+    if not settings.smtp_host:
+        return jsonify({"success": False, "error": "SMTP host not configured"})
+
+    if not settings.smtp_username or not settings.smtp_password:
+        return jsonify({"success": False, "error": "SMTP credentials not configured"})
+
+    try:
+        # Try to connect and authenticate
+        if settings.smtp_use_tls:
+            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30)
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=30)
+
+        server.login(settings.smtp_username, settings.smtp_password)
+        server.quit()
+
+        return jsonify({
+            "success": True,
+            "message": "SMTP connection and authentication successful",
+            "host": settings.smtp_host,
+            "port": settings.smtp_port,
+            "username": settings.smtp_username
+        })
+    except smtplib.SMTPAuthenticationError as e:
+        return jsonify({
+            "success": False,
+            "error": f"Authentication failed: {e}",
+            "host": settings.smtp_host,
+            "username": settings.smtp_username,
+            "hint": "Check that SMTP_USERNAME is the full email address and SMTP_PASSWORD is correct"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 # ============== Admin Training Applications Routes ==============
 
 @app.route('/admin/training-applications')
