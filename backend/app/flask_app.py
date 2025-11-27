@@ -2063,18 +2063,12 @@ def update_message(message_id):
 @app.route('/messages/<int:message_id>', methods=['DELETE'])
 @token_required
 def delete_message(message_id):
-    """Delete a message."""
+    """Delete a message. Any authenticated user can delete any message."""
     db = get_db()
     message = db.query(Message).filter(Message.id == message_id).first()
 
     if not message:
         return jsonify({'error': 'Message not found'}), 404
-
-    # Check access - only sender or recipient can delete
-    user = g.current_user
-    if message.sender_id != user.id and message.recipient_id != user.id:
-        if not (user.role == 'admin' and message.recipient_id is None):
-            return jsonify({'error': 'Access denied'}), 403
 
     db.delete(message)
     db.commit()
