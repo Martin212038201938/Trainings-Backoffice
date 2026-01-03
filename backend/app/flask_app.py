@@ -169,6 +169,20 @@ def root():
     return render_template('index.html')
 
 
+@app.route('/login')
+def login_page():
+    """Serve the login landing page."""
+    template_path = TEMPLATE_DIR / 'login.html'
+    if not template_path.exists():
+        return jsonify({
+            "error": "Login template not found",
+            "template_path": str(template_path),
+            "template_dir": str(TEMPLATE_DIR),
+            "exists": template_path.exists()
+        }), 500
+    return render_template('login.html')
+
+
 @app.route('/api')
 def api_root():
     """API status endpoint."""
